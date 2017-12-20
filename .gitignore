@@ -1,0 +1,24 @@
+# Python
+config.py
+*.py[cod]
+
+# Mac OS-X
+.DS_Store
+._*
+*~
+
+# Enviroment
+venv
+migrations
+logs/*
+tmp/app.pid
+.idea
+
+tmp/*/*
+!tmp/*/.gitkeep
+
+
+# Node, Bower, SASS
+.sass-cache
+bower_components
+node_modules

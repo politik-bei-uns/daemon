@@ -1,0 +1,7 @@
+{
+  "id": "070000000000-1",
+  "rgs": "070000000000",
+  "url": "https://api.kleineanfragen.de/oparl/v1/body/rp",
+  "force_full_sync": 1,
+  "active": false
+}

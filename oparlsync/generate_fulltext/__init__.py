@@ -1,0 +1,1 @@
+from .GenerateFulltext import GenerateFulltext

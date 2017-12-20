@@ -1,0 +1,1 @@
+from .GenerateThumbnails import GenerateThumbnails

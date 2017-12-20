@@ -1,0 +1,10 @@
+requests
+pymongo
+mongoengine
+python-dateutil
+python-daemon
+minio
+pillow
+osmium
+elasticsearch>=5.0.0,<6.0.0
+geojson
