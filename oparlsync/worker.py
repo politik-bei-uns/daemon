@@ -40,7 +40,6 @@ class Worker(Process):
                         self.common.update_datalog(job.payload['module'], job.payload['body_id'])
                         current_module = self.common.modules[job.payload['module']](self.common)
                         current_module.run(job.payload['body_id'])
-                        self.common.add_next_to_queue(job.payload['module'], job.payload['body_id'])
                     except:
                         self.common.send_mail(
                             self.common.config.ADMINS,
@@ -48,6 +47,7 @@ class Worker(Process):
                             "Body ID: %s\nBacktrace:\n%s" % (job.payload['body_id'], traceback.format_exc())
                         )
                     finally:
+                        self.common.add_next_to_queue(job.payload['module'], job.payload['body_id'])
                         job.complete()
             if self.tick >= 100000:
                 self.tick = 0

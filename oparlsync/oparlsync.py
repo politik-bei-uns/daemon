@@ -116,9 +116,9 @@ class OparlSync():
         daemon_context = daemon.DaemonContext(
             working_directory=self.common.config.BASE_DIR,
             umask=0o002,
-            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid'))  # ,
-            # stdout=stdout,
-            # stderr=stderr
+            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid'))#,
+            #stdout=stdout,
+            #stderr=stderr
         )
 
         daemon_context.signal_map = {

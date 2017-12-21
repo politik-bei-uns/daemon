@@ -228,7 +228,6 @@ class Common():
                     return False
         except FileNotFoundError:
             return False
-        return False
 
     def get_region_config(self, rgs):
         try:
