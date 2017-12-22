@@ -6,6 +6,7 @@ Der OParl-only-Modus benötigt folgende Komponenten:
 * Ein Linux (getestet mit Ubuntu 16.04 und Debian 9.0)
 * Python 3 (getestet mit Python 3.5)
 * MongoDB 3 (getestet mit MongoDB 3.2 und 3.4)
+* Minio
 
 Der Weiterverarbeitungs-Modus benötigt darüber hinaus:
 * ElasticSearch 5 (getestet mit ElasticSearch 5.6)
