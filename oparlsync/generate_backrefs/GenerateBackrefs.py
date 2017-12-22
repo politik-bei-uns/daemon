@@ -46,10 +46,10 @@ class GenerateBackrefs():
 
 
         # Location
-        self.backref_item(Person, 'location', 'persons')
-        self.backref_item(Organization, 'location', 'organizations')
-        self.backref_item(Meeting, 'location', 'meetings')
-        self.backref_list(Paper, 'location', 'papers')
+        self.backref_item(Person, 'location', 'person')
+        self.backref_item(Organization, 'location', 'organization')
+        self.backref_item(Meeting, 'location', 'meeting')
+        self.backref_list(Paper, 'location', 'paper')
 
         self.main.datalog.info('Created %s backreferences' % self.backrefs_created)
 

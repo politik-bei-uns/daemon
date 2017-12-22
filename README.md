@@ -1,0 +1,1 @@
+Der "Politik bei uns"-Daemon ist ein Unix-Daemon, welcher von einer Reihe an OParl-Endpunkten Daten downloaded und weiterverarbeitet.

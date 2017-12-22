@@ -228,6 +228,12 @@ class OparlDownload():
 
         if self.main.config.USE_MIRROR:
             object_raw['id'] = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId']
+
+        # Stupid Bugfix for Person -> Location as locationObject
+        if 'locationObject' in object_raw:
+            object_raw['location'] = object_raw['locationObject']
+            del object_raw['locationObject']
+
         for key, value in object_raw.items():
             if key in object_instance._fields:
                 if type(object_instance._fields[key]).__name__ == 'ListField':
@@ -266,6 +272,9 @@ class OparlDownload():
                     for valid_object in self.valid_objects:
                         if valid_object.__name__ == object_instance._fields[key].document_type_obj:
                             sub_validate = True
+                            # Stupid bugfix for Person -> Location is an object id
+                            if object.__name__ == 'Person' and valid_object.__name__ == 'Location' and isinstance(value, str):
+                                value = self.get_url_json(value)
                             if isinstance(value, dict):
                                 sub_object_raw = value
                                 if 'created' not in sub_object_raw and 'created' in object_raw:
@@ -300,7 +309,7 @@ class OparlDownload():
                 object_json[field_key] = getattr(object_instance, field_key)
 
         if object == Location:
-            object_json['bodies'] = [self.body_uid]
+            object_json['body'] = [self.body_uid]
             if 'geojson' in object_json:
                 if 'geometry' in object_json['geojson']:
                     try:
