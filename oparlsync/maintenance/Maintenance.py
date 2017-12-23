@@ -63,9 +63,7 @@ class Maintenance():
         # delete in mongodb
 
         for object in self.valid_objects:
-            if object == Location:
-                object.objects(bodies=body.id).delete()
-            elif object != Body:
+            if object != Body:
                 object.objects(body=body.id).delete()
         # delete in minio
         try:
@@ -204,7 +202,7 @@ class Maintenance():
                 print('modified %s' % street.streetName)
         for location in Location.objects():
             if not location.locality:
-                location.locality = location.bodies[0].name
+                location.locality = location.body[0].name
                 if 'properties' not in location.geojson:
                     location.geojson['properties'] = {}
-                location.geojson['properties']['locality'] = location.bodies[0].name
+                location.geojson['properties']['locality'] = location.body[0].name

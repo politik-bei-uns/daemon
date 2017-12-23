@@ -145,7 +145,7 @@ class ElasticsearchImport():
         else:
             index_name = list(self.main.es.indices.get_alias('paper-location-latest'))[0]
 
-        for location in Location.objects(bodies=self.body):
+        for location in Location.objects(body=self.body):
             location_dict = location.to_dict(deref='deref_paper_location', format_datetime=True, delete='delete_paper_location')
             if 'geojson' in location_dict:
                 if location_dict['geojson']:

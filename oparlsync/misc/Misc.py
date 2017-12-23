@@ -57,7 +57,7 @@ class Misc():
                 'consultation': Consultation.objects(body=body).count(),
                 'paper': Paper.objects(body=body).count(),
                 'file': File.objects(body=body).count(),
-                'location': Location.objects(bodies=body).count()
+                'location': Location.objects(body=body).count()
             }
         }
         body.statistics = statistics
