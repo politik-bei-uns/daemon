@@ -19,7 +19,7 @@ import lockfile
 import daemon.pidfile
 import multiprocessing
 from multiprocessing import Process, Value
-from multiprocessing.managers import SyncManager
+from setproctitle import setproctitle
 
 from .common import Common
 from .worker import Worker
@@ -110,15 +110,15 @@ class OparlSync():
     def daemon_start(self):
         if self.get_daemon_status():
             sys.exit('Daemon already running.')
-        stdout = open(os.path.join(self.common.config.LOG_DIR, 'output.log'), 'w+')
-        stderr = open(os.path.join(self.common.config.LOG_DIR, 'error.log'), 'w+')
+        #stdout = open(os.path.join(self.common.config.LOG_DIR, 'output.log'), 'w+')
+        #stderr = open(os.path.join(self.common.config.LOG_DIR, 'error.log'), 'w+')
 
         daemon_context = daemon.DaemonContext(
             working_directory=self.common.config.BASE_DIR,
             umask=0o002,
-            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid')),
-            stdout=stdout,
-            stderr=stderr
+            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid'))#,
+            #stdout=stdout,
+            #stderr=stderr
         )
 
         daemon_context.signal_map = {
@@ -128,6 +128,7 @@ class OparlSync():
         }
 
         self.common.statuslog.info('Starting daemon ...')
+        setproctitle('%s: master ' % (self.common.config.PROJECT_NAME))
         try:
             with daemon_context:
                 # Logging (Status)

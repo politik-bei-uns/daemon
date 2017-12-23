@@ -31,14 +31,14 @@ class Worker(Process):
     def run(self):
         self.tick = 0
         self.common = Common(prefix=self.process_name)
-        setproctitle('%s: idle ' % (self.common.config.PROJECT_NAME))
+        setproctitle('%s worker: idle ' % (self.common.config.PROJECT_NAME))
         self.common.statuslog.info('Process %s started!' % self.process_name)
         while True:
             if self.tick % 100 == 0:
                 job = self.common.queue_network.next()
                 if job:
                     try:
-                        setproctitle('%s: %s %s ' % (self.common.config.PROJECT_NAME, job.payload['module'], job.payload['body_id']))
+                        setproctitle('%s worker: %s %s ' % (self.common.config.PROJECT_NAME, job.payload['module'], job.payload['body_id']))
                         self.common.update_datalog(job.payload['module'], job.payload['body_id'])
                         current_module = self.common.modules[job.payload['module']](self.common)
                         current_module.run(job.payload['body_id'])
@@ -51,7 +51,7 @@ class Worker(Process):
                     finally:
                         self.common.add_next_to_queue(job.payload['module'], job.payload['body_id'])
                         job.complete()
-                        setproctitle('%s: idle ' % (self.common.config.PROJECT_NAME))
+                        setproctitle('%s worker: idle ' % (self.common.config.PROJECT_NAME))
             if self.tick >= 100000:
                 self.tick = 0
             self.tick += 1
