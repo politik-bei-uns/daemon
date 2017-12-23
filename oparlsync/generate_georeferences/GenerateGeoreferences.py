@@ -60,8 +60,8 @@ class GenerateGeoreferences():
                         if location not in paper.location:
                             paper.location.append(location)
                             paper.save()
-                        if paper not in location.papers:
-                            location.papers.append(paper)
+                        if paper not in location.paper:
+                            location.paper.append(paper)
                             location.save()
 
                 file.georeferencesStatus = 'generated'
@@ -73,6 +73,16 @@ class GenerateGeoreferences():
         if street.streetNumber:
             for street_number in street.streetNumber:
                 if street_number.streetName + ' ' + street_number.streetNumber in text:
+                    do_save = True
+                    # check: is there another street number like examplestreet 38 if this is examplestreet 3? then proceed
+                    # todo: make it even better detecting examplestreet 3 AND 38
+                    for street_number_check in street.streetNumber:
+                        if street_number.streetName + ' ' + street_number.streetNumber in street_number_check.streetName + ' ' + street_number_check.streetNumber and len(street_number.streetNumber) < len(street_number_check.streetNumber):
+                            if street_number_check.streetName + ' ' + street_number_check.streetNumber in text:
+                                do_save = False
+                                continue
+                    if not do_save:
+                        continue
                     locations.append(self.create_location(
                         file,
                         'address',
@@ -117,14 +127,14 @@ class GenerateGeoreferences():
         location = Location.objects(**query)
         if location.count():
             location = location.first()
-            if location.bodies:
-                if len(location.bodies):
-                    if self.body not in location.bodies:
-                        location.bodies.append(self.body)
+            if location.body:
+                if len(location.body):
+                    if self.body not in location.body:
+                        location.body.append(self.body)
         else:
             location = Location()
             location.created = datetime.datetime.now()
-            location.bodies = [self.body]
+            location.body = [self.body]
         for key, value in query.items():
             setattr(location, key, value)
         location.modified = datetime.datetime.now()
