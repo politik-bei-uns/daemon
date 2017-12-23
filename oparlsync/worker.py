@@ -10,11 +10,11 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import random
 import time
 import signal
 import traceback
 from multiprocessing import Process
+from setproctitle import setproctitle
 
 from .common import Common
 from .oparl_download import OparlDownload
@@ -31,12 +31,14 @@ class Worker(Process):
     def run(self):
         self.tick = 0
         self.common = Common(prefix=self.process_name)
+        setproctitle('%s: idle ' % (self.common.config.PROJECT_NAME))
         self.common.statuslog.info('Process %s started!' % self.process_name)
         while True:
             if self.tick % 100 == 0:
                 job = self.common.queue_network.next()
                 if job:
                     try:
+                        setproctitle('%s: %s %s ' % (self.common.config.PROJECT_NAME, job.payload['module'], job.payload['body_id']))
                         self.common.update_datalog(job.payload['module'], job.payload['body_id'])
                         current_module = self.common.modules[job.payload['module']](self.common)
                         current_module.run(job.payload['body_id'])
@@ -49,6 +51,7 @@ class Worker(Process):
                     finally:
                         self.common.add_next_to_queue(job.payload['module'], job.payload['body_id'])
                         job.complete()
+                        setproctitle('%s: idle ' % (self.common.config.PROJECT_NAME))
             if self.tick >= 100000:
                 self.tick = 0
             self.tick += 1

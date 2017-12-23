@@ -116,9 +116,9 @@ class OparlSync():
         daemon_context = daemon.DaemonContext(
             working_directory=self.common.config.BASE_DIR,
             umask=0o002,
-            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid'))#,
-            #stdout=stdout,
-            #stderr=stderr
+            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid')),
+            stdout=stdout,
+            stderr=stderr
         )
 
         daemon_context.signal_map = {
@@ -148,42 +148,3 @@ class OparlSync():
     def program_cleanup(self, signal, frame):
         self.common.statuslog.info("\nShutting down (this will take some time!) ...")
         self.do_shutdown.value = 1
-        """
-        # Thread-Liste (Lokal)
-        self.threads_local = []
-        for i in range(0, self.config.THREADS_LOCAL_MAX):
-          self.threads_local.append(Worker(self, i + 1))
-          self.threads_local[i].start()
-        self.tick = 0
-        """
-        """
-        # Primäre Loop
-        try:
-          while True:
-            if self.tick % 10 == 0:
-              #self.statuslog.debug('Check for new jobs ...')
-              network_busy_before = 0
-              network_busy_after = 0
-              for i in range(0, self.config.THREADS_NETWORK_MAX):
-                if self.threads_network[i].get_status():
-                  network_busy_before += 1
-                  network_busy_after += 1
-                else:
-                  #self.statuslog.debug('Give a job to network thread %s' % (i + 1))
-                  new_job = self.queue_network.next()
-                  if new_job:
-                    self.threads_network[i].set_job(new_job)
-                    network_busy_after += 1
-            if self.tick >= 100000:
-              self.tick = 0
-            self.tick += 1
-            time.sleep(.1)
-        except KeyboardInterrupt:
-          self.statuslog.info("\nShutting down (this will take some time!)...")
-          self.run_event.clear()
-          for thread in self.threads_network:
-            thread.join()
-          for thread in self.threads_local:
-            thread.join()
-          self.statuslog.info("Successfully shut down.")
-        """
