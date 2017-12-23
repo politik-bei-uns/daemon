@@ -39,6 +39,7 @@ class Body(Document, OParlDocument):
 
     # Politik bei Uns Felder
     originalId = StringField(vendor_attribute=True)
+    mirrorId = StringField(vendor_attribute=True)
     lastSync = DateTimeField(datetime_format='datetime', vendor_attribute=True)
     statistics = DictField(vendor_attribute=True)
 

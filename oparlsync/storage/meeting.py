@@ -40,6 +40,7 @@ class Meeting(Document, OParlDocument):
 
     # Politik bei Uns Felder
     originalId = StringField(vendor_attribute=True)
+    mirrorId = StringField(vendor_attribute=True)
     georeferenceStatus = StringField(vendor_attribute=True)
     georeferenceGenerated = DateTimeField(datetime_format='datetime', vendor_attribute=True)
 

@@ -16,6 +16,7 @@ import sys
 import time
 import json
 import minio
+import urllib
 import hashlib
 import datetime
 import requests
@@ -156,7 +157,7 @@ class OparlDownload():
 
     def get_body(self, set_last_sync=True):
         if self.main.config.USE_MIRROR:
-            body_raw = self.get_url_json(self.main.config.OPARL_MIRROR_URL + '/body-by-id?id=' + self.body_config['url'], wait=False)
+            body_raw = self.get_url_json(self.main.config.OPARL_MIRROR_URL + '/body-by-id?id=' + urllib.parse.quote_plus(self.body_config['url']), wait=False)
         else:
             body_raw = self.get_url_json(self.body_config['url'], wait=False)
         if body_raw:
@@ -190,7 +191,7 @@ class OparlDownload():
             self.person_list_url = body_raw['person']
             self.meeting_list_url = body_raw['meeting']
             self.paper_list_url = body_raw['paper']
-            if self.main.config.USE_MIRROR:
+            if self.main.config.USE_MIRROR and self.last_update:
                 self.legislative_term_list_url = body_raw['legislativeTerm']
                 self.membership_list_url = body_raw['membership']
                 self.agenda_item_list_url = body_raw['agendaItem']
@@ -207,7 +208,7 @@ class OparlDownload():
         if list_url:
             object_list = self.get_url_json(list_url, is_list=True)
         else:
-            if self.last_update and self.body_config['force_full_sync'] == 0:
+            if self.last_update and (self.body_config['force_full_sync'] == 0 or self.main.config.USE_MIRROR):
                 object_list = self.get_url_json(
                     getattr(self, '%s_list_url' % object._object_db_name) + '?modified_since=%s' % self.last_update.isoformat(),
                     is_list=True
@@ -226,8 +227,10 @@ class OparlDownload():
         object_instance = object()
         dbref_data = {}
 
-        if self.main.config.USE_MIRROR:
-            object_raw['id'] = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId']
+        #if self.main.config.USE_MIRROR:
+        #    object_raw['mirrorId'] = object_raw['id']
+        #    object_raw['id'] = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId']
+
 
         # Stupid Bugfix for Person -> Location as locationObject
         if 'locationObject' in object_raw:
@@ -300,9 +303,17 @@ class OparlDownload():
                     '%s %s from Body %s failed validation.' % (object.__name__, object_raw['id'], self.body_uid))
 
         # Etwas umständlicher Weg über pymongo
-        query = {
-            'originalId': object_instance.originalId
-        }
+        if self.main.config.USE_MIRROR:
+            query = {
+                'mirrorId': object_instance.originalId
+            }
+            object_instance.mirrorId = object_instance.originalId
+            if self.main.config.OPARL_MIRROR_PREFIX + ':originalId' in object_raw:
+                object_instance.originalId = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId']
+        else:
+            query = {
+                'originalId': object_instance.originalId
+            }
         object_json = json.loads(object_instance.to_json())
         for field_key in object_json.keys():
             if type(object_instance._fields[field_key]).__name__ == 'DateTimeField':
@@ -320,6 +331,17 @@ class OparlDownload():
                     except ValueError:
                         del object_json['geojson']
                         self.main.datalog.warn('invalid geojson found at %s' % object_instance.originalId)
+        elif object == File and self.main.config.USE_MIRROR:
+            object_json['storedAtMirror'] = True
+            if 'originalAccessUrl' in object_json:
+                object_json['mirrorAccessUrl'] = object_json['originalAccessUrl']
+            if 'originalDownloadUrl' in object_json:
+                object_json['mirrorDownloadUrl'] = object_json['originalDownloadUrl']
+            if self.main.config.OPARL_MIRROR_PREFIX + ':originalAccessUrl' in object_raw:
+                object_json['originalAccessUrl'] = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalAccessUrl']
+            if self.main.config.OPARL_MIRROR_PREFIX + ':originalDownloadUrl' in object_raw:
+                object_json['originalDownloadUrl'] = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalDownloadUrl']
+
         elif object == Body:
             if self.body_config['name']:
                 object_json['name'] = self.body_config['name']
@@ -346,7 +368,7 @@ class OparlDownload():
         self.main.datalog.debug('%s %s from Body %s saved successfully.' % (object.__name__, result['_id'], self.body_uid))
         self.mongodb_request_time += time.time() - start_time
 
-        if object == File:
+        if object == File and not self.main.config.USE_MIRROR:
             # save file in minio
             download_file = True
             if self.body_config['force_full_sync'] == 1 and self.last_update and object_instance.modified:

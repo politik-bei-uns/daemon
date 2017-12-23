@@ -40,6 +40,7 @@ class Organization(Document, OParlDocument):
 
     # Politik bei Uns Felder
     originalId = StringField(vendor_attribute=True)
+    mirrorId = StringField(vendor_attribute=True)
 
     # Felder zur Verarbeitung
     _object_db_name = 'organization'
