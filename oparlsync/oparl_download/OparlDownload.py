@@ -21,6 +21,7 @@ import hashlib
 import datetime
 import requests
 import dateutil
+from ssl import SSLError
 from geojson import Feature
 from urllib.parse import urlparse
 from ..models import *
@@ -53,15 +54,6 @@ class OparlDownload():
             Meeting,
             Paper
         ]
-        if main.config.USE_MIRROR:
-            self.body_objects += [
-                LegislativeTerm,
-                Membership,
-                AgendaItem,
-                Consultation,
-                File,
-                Location
-            ]
 
         # set s3 files readonly if necessary
         if main.s3.get_bucket_policy(main.config.S3_BUCKET, "files") != 'readonly':
@@ -171,6 +163,8 @@ class OparlDownload():
                     'rgs': self.body_config['rgs']
                 }
             }
+            if self.main.config.USE_MIRROR:
+                object_json['$set']['mirrorId'] = body_raw['id']
             self.correct_document_values(object_json['$set'])
             self.mongodb_request_count += 1
             start_time = time.time()
@@ -181,6 +175,7 @@ class OparlDownload():
                 return_document=ReturnDocument.AFTER
             )
             self.body_uid = result['_id']
+
             if 'lastSync' in result:
                 local_time_zone = dateutil.tz.gettz('Europe/Berlin')
                 self.last_update = result['lastSync'].replace(microsecond=0, tzinfo=local_time_zone)
@@ -192,13 +187,18 @@ class OparlDownload():
             self.meeting_list_url = body_raw['meeting']
             self.paper_list_url = body_raw['paper']
             if self.main.config.USE_MIRROR and self.last_update:
-                self.legislative_term_list_url = body_raw['legislativeTerm']
                 self.membership_list_url = body_raw['membership']
                 self.agenda_item_list_url = body_raw['agendaItem']
                 self.consultation_list_url = body_raw['consultation']
                 self.location_list_url = body_raw['location']
                 self.file_list_url = body_raw['file']
-
+                self.body_objects += [
+                    Membership,
+                    AgendaItem,
+                    Consultation,
+                    File,
+                    Location
+                ]
             # set last sync if everything is done so far
             if set_last_sync:
                 body_raw['lastSync'] = self.start_time.isoformat()
@@ -506,7 +506,10 @@ class OparlDownload():
         return False
 
     def get_file(self, url, file_name):
-        r = requests.get(url, stream=True)
+        try:
+            r = requests.get(url, stream=True)
+        except SSLError:
+            return False
         if r.status_code != 200:
             return False
         with open(os.path.join(self.main.config.TMP_FILE_DIR, file_name), 'wb') as f:

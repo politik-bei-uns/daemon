@@ -17,11 +17,12 @@ import time
 import logging
 import pymongo
 import smtplib
+import requests
 import mongoengine
 from copy import deepcopy
 from minio import Minio
 from minio.policy import Policy
-from minio.error import (ResponseError, BucketAlreadyOwnedByYou, BucketAlreadyExists)
+from minio.error import (ResponseError, BucketAlreadyOwnedByYou, BucketAlreadyExists, NoSuchKey)
 from urllib3.exceptions import MaxRetryError
 
 from .config import get_config
@@ -240,3 +241,28 @@ class Common():
                     return False
         except FileNotFoundError:
             return False
+
+    def get_file(self, file, save_to):
+        if file.storedAtMirror:
+            if not file.mirrorAccessUrl:
+                return False
+            r = requests.get(file.mirrorAccessUrl, stream=True)
+            if r.status_code != 200:
+                return False
+            with open(save_to, 'wb') as file_data:
+                for chunk in r.iter_content(chunk_size=32 * 1024):
+                    if chunk:
+                        file_data.write(chunk)
+            return True
+        else:
+            try:
+                data = self.s3.get_object(
+                    self.config.S3_BUCKET,
+                    "files/%s/%s" % (file.body.id, file.id)
+                )
+            except NoSuchKey:
+                return False
+            with open(save_to, 'wb') as file_data:
+                for chunk in data.stream(32 * 1024):
+                    file_data.write(chunk)
+            return True

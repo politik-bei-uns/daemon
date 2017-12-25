@@ -39,13 +39,10 @@ class GenerateThumbnails():
             self.main.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()
             file.thumbnailGenerated = datetime.datetime.now()
+
             # get file
-            try:
-                data = self.main.s3.get_object(
-                    self.main.config.S3_BUCKET,
-                    "files/%s/%s" % (body_id, file.id)
-                )
-            except NoSuchKey:
+            file_path =  os.path.join(self.main.config.TMP_THUMBNAIL_DIR, str(file.id))
+            if not self.main.get_file(file, file_path):
                 self.main.datalog.warn('file not found: %s' % file.id)
                 self.statistics['file-missing'] += 1
                 file.thumbnailStatus = 'file-missing'
@@ -53,13 +50,6 @@ class GenerateThumbnails():
                 file.modified = datetime.datetime.now()
                 file.save()
                 continue
-
-            file_path = os.path.join(self.main.config.TMP_THUMBNAIL_DIR, str(file.id))
-
-            # save file
-            with open(file_path, 'wb') as file_data:
-                for d in data.stream(32 * 1024):
-                    file_data.write(d)
 
             if file.mimeType not in ['application/msword', 'application/pdf']:
                 self.main.datalog.warn('wrong mimetype: %s' % file.id)
@@ -99,9 +89,9 @@ class GenerateThumbnails():
             # generate thumbnails based on max images
             for max_file in os.listdir(max_folder):
                 pages += 1
-                file_path = os.path.join(max_folder, max_file)
+                file_path_max = os.path.join(max_folder, max_file)
                 num = max_file.split('.')[0]
-                im = Image.open(file_path)
+                im = Image.open(file_path_max)
                 im = self.conditional_to_greyscale(im)
                 (owidth, oheight) = im.size
                 file.thumbnail[str(num)] = {
@@ -140,7 +130,7 @@ class GenerateThumbnails():
                         )
                     except ResponseError as err:
                         self.main.datalog.error(
-                            'Critical error saving file from File %s from Body %s' % (file.id, self.body_uid))
+                            'Critical error saving file from File %s from Body %s' % (file.id, body_id))
             # save in mongodb
             file.thumbnailStatus = 'successful'
             file.thumbnailsGenerated = datetime.datetime.now()

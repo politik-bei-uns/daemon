@@ -38,24 +38,13 @@ class GenerateFulltext():
             file.modified = datetime.datetime.now()
             file.textGenerated = datetime.datetime.now()
             # get file
-            try:
-                data = self.main.s3.get_object(
-                    self.main.config.S3_BUCKET,
-                    "files/%s/%s" % (body_id, file.id)
-                )
-            except NoSuchKey:
+            file_path = os.path.join(self.main.config.TMP_FULLTEXT_DIR, str(file.id))
+            if not self.main.get_file(file, file_path):
                 self.main.datalog.warn('file not found: %s' % file.id)
                 self.statistics['file-missing'] += 1
                 file.textStatus = 'file-missing'
                 file.save()
                 continue
-
-            file_path = os.path.join(self.main.config.TMP_FULLTEXT_DIR, str(file.id))
-
-            # save file
-            with open(file_path, 'wb') as file_data:
-                for d in data.stream(32 * 1024):
-                    file_data.write(d)
 
             # decide app based on mimetype
             if file.mimeType == 'application/pdf':
