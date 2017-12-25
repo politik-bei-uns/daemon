@@ -55,7 +55,7 @@ class GenerateBackrefs():
 
     def backref_single(self, obj_name, attr, backref_attr):
         filter = {'body': self.body, attr + '__exists': True}
-        for obj in obj_name.objects(**filter).all():
+        for obj in obj_name.objects(**filter).no_cache().all():
             if obj != getattr(getattr(obj, attr), backref_attr):
                 setattr(getattr(obj, attr), backref_attr, obj)
                 getattr(obj, attr).save()
@@ -63,7 +63,7 @@ class GenerateBackrefs():
 
     def backref_item(self, obj_name, attr, backref_attr):
         filter = {'body': self.body, attr + '__exists': True}
-        for obj in obj_name.objects(**filter).all():
+        for obj in obj_name.objects(**filter).no_cache().all():
             if obj not in getattr(getattr(obj, attr), backref_attr):
                 getattr(getattr(obj, attr), backref_attr).append(obj)
                 getattr(obj, attr).save()
@@ -71,7 +71,7 @@ class GenerateBackrefs():
 
     def backref_list(self, obj_name, attr, backref_attr):
         filter = {'body': self.body, attr + '__exists': True}
-        for obj in obj_name.objects(**filter).all():
+        for obj in obj_name.objects(**filter).no_cache().all():
             for sub_obj in getattr(obj, attr):
                 if obj not in getattr(sub_obj, backref_attr):
                     getattr(sub_obj, backref_attr).append(obj)
@@ -80,7 +80,7 @@ class GenerateBackrefs():
 
     def backref_list_single(self, obj_name, attr, backref_attr):
         filter = {'body': self.body, attr + '__exists': True}
-        for obj in obj_name.objects(**filter).all():
+        for obj in obj_name.objects(**filter).no_cache().all():
             for sub_obj in getattr(obj, attr):
                 if obj != getattr(sub_obj, backref_attr):
                     setattr(sub_obj, backref_attr, obj)
