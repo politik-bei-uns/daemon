@@ -32,7 +32,7 @@ class GenerateFulltext():
             return
         self.body_config = self.main.get_body_config(body_id)
         body_id = Body.objects(originalId=self.body_config['url']).first().id
-        files = File.objects(textStatus__exists=False, body=body_id).timeout(False).all()
+        files = File.objects(textStatus__exists=False, body=body_id).timeout(False).no_cache().all()
         for file in files:
             self.main.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()

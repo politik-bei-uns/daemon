@@ -115,7 +115,7 @@ class OparlDownload():
         self.body_config = self.main.get_body_config(body_id)
         self.last_update = False
         try:
-            body = Body.objects(originalId=self.body_config['url']).first()
+            body = Body.objects(originalId=self.body_config['url']).no_cache().first()
         except ServerSelectionTimeoutError:
             sys.exit('fatal: MongoDB not available')
         if not body:

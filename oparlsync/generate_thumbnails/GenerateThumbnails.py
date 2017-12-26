@@ -33,8 +33,8 @@ class GenerateThumbnails():
         if not self.main.config.ENABLE_PROCESSING:
             return
         self.body_config = self.main.get_body_config(body_id)
-        body_id = Body.objects(originalId=self.body_config['url']).first().id
-        files = File.objects(thumbnailStatus__exists=False, body=body_id).timeout(False).all()
+        body_id = Body.objects(originalId=self.body_config['url']).no_cache().first().id
+        files = File.objects(thumbnailStatus__exists=False, body=body_id).no_cache().timeout(False).all()
         for file in files:
             self.main.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()

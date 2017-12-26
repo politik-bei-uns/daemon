@@ -43,7 +43,7 @@ class StreetImport():
             object_json,
             upsert=True
         )
-        self.body = Body.objects(originalId=self.body_config['url']).first()
+        self.body = Body.objects(originalId=self.body_config['url']).no_cache().first()
         self.body_uid = self.body.id
 
         if not self.body_config['osm_relation'] or not self.body_config['geofabrik_package']:

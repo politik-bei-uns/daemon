@@ -124,7 +124,7 @@ class GenerateGeoreferences():
             else:
                 query['locality'] = locality
 
-        location = Location.objects(**query)
+        location = Location.objects(**query).no_cache()
         if location.count():
             location = location.first()
             if location.body:

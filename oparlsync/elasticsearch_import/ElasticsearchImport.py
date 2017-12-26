@@ -26,7 +26,7 @@ class ElasticsearchImport():
         if not self.main.config.ENABLE_PROCESSING:
             return
         self.body_config = self.main.get_body_config(body_id)
-        self.body = Body.objects(originalId=self.body_config['url']).first()
+        self.body = Body.objects(originalId=self.body_config['url']).no_cache().first()
         self.statistics = {
             'created': 0,
             'updated': 0
@@ -59,7 +59,7 @@ class ElasticsearchImport():
         else:
             index_name = list(self.main.es.indices.get_alias('street-latest'))[0]
 
-        for street in Street.objects(body=self.body):
+        for street in Street.objects(body=self.body).no_cache():
             street_dict = street.to_dict(deref='deref_street', format_datetime=True, delete='delete_street')
             if 'geojson' in street_dict:
                 del street_dict['geojson']
@@ -104,7 +104,7 @@ class ElasticsearchImport():
         else:
             index_name = list(self.main.es.indices.get_alias('paper-latest'))[0]
 
-        for paper in Paper.objects(body=self.body):
+        for paper in Paper.objects(body=self.body).no_cache():
             paper_dict = paper.to_dict(deref='deref_paper', format_datetime=True, delete='delete_paper', clean_none=True)
             paper_dict['body_name'] = paper.body.name
             new_doc = self.main.es.index(
@@ -145,7 +145,7 @@ class ElasticsearchImport():
         else:
             index_name = list(self.main.es.indices.get_alias('paper-location-latest'))[0]
 
-        for location in Location.objects(body=self.body):
+        for location in Location.objects(body=self.body).no_cache():
             location_dict = location.to_dict(deref='deref_paper_location', format_datetime=True, delete='delete_paper_location')
             if 'geojson' in location_dict:
                 if location_dict['geojson']:

@@ -44,20 +44,20 @@ class Misc():
         if not self.main.config.ENABLE_PROCESSING:
             return
         self.body_config = self.main.get_body_config(body_id)
-        body = Body.objects(originalId=self.body_config['url']).first()
+        body = Body.objects(originalId=self.body_config['url']).no_cache().first()
 
         statistics = {
             'objects': {
-                'legislative_term': LegislativeTerm.objects(body=body).count(),
-                'organization': Organization.objects(body=body).count(),
-                'person': Person.objects(body=body).count(),
-                'membership': Membership.objects(body=body).count(),
-                'meeting': Meeting.objects(body=body).count(),
-                'agenda_item': AgendaItem.objects(body=body).count(),
-                'consultation': Consultation.objects(body=body).count(),
-                'paper': Paper.objects(body=body).count(),
-                'file': File.objects(body=body).count(),
-                'location': Location.objects(body=body).count()
+                'legislative_term': LegislativeTerm.objects(body=body).no_cache().count(),
+                'organization': Organization.objects(body=body).no_cache().count(),
+                'person': Person.objects(body=body).no_cache().count(),
+                'membership': Membership.objects(body=body).no_cache().count(),
+                'meeting': Meeting.objects(body=body).no_cache().count(),
+                'agenda_item': AgendaItem.objects(body=body).no_cache().count(),
+                'consultation': Consultation.objects(body=body).no_cache().count(),
+                'paper': Paper.objects(body=body).no_cache().count(),
+                'file': File.objects(body=body).no_cache().count(),
+                'location': Location.objects(body=body).no_cache().count()
             }
         }
         body.statistics = statistics
