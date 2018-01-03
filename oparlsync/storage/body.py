@@ -38,6 +38,8 @@ class Body(Document, OParlDocument):
     deleted = BooleanField()
 
     # Politik bei Uns Felder
+    uid = StringField(vendor_attribute=True)
+    legacy = BooleanField(vendor_attribute=True)
     originalId = StringField(vendor_attribute=True)
     mirrorId = StringField(vendor_attribute=True)
     lastSync = DateTimeField(datetime_format='datetime', vendor_attribute=True)

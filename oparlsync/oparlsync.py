@@ -39,7 +39,7 @@ class OparlSync():
 
     def queue_add(self, module, body_id, *args):
         if module not in self.common.modules:
-            sys.exit('fatal: module should be one of %s' % '|'.join(self.modules.keys()))
+            sys.exit('fatal: module should be one of %s' % '|'.join(self.common.modules.keys()))
         if body_id == 'all':
             bodies = os.listdir(self.common.config.BODY_DIR)
             for body in bodies:
@@ -65,6 +65,13 @@ class OparlSync():
 
     def queue_list(self):
         jobs = self.common.queue_network.next()
+
+    def queue_details(self):
+        jobs = self.common.queue_network.details()
+        print('| Body ID        | Job                    | Status    |')
+        print('|----------------|------------------------|-----------|')
+        for job in jobs:
+            print('| %s | %s | %s |' % (job['body_id'], job['module'].ljust(22), job['status'].ljust(8)))
 
     def queue_stats(self):
         stats = self.common.queue_network.stats()

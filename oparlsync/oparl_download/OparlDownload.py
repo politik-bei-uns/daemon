@@ -160,7 +160,8 @@ class OparlDownload():
             object_json = {
                 '$set': {
                     'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id'],
-                    'rgs': self.body_config['rgs']
+                    'rgs': self.body_config['rgs'],
+                    'uid': self.body_config['id']
                 }
             }
             if self.main.config.USE_MIRROR:

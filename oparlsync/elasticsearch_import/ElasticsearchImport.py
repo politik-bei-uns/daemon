@@ -254,7 +254,7 @@ class ElasticsearchImport():
 
     def es_mapping_field_object(self):
         return {
-            'store': True,
+            'fielddata': True,
             'type': 'string'
         }
 

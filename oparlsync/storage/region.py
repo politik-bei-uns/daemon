@@ -17,5 +17,7 @@ class Region(Document, OParlDocument):
     name = StringField()
     rgs = StringField()
     level = IntField()
-    bounds = DictField()
+    bounds = ListField(ListField())
     geojson = DictField(geojson=True)
+    parent = ReferenceField('Region', deref_document=False)
+    body = ListField(ReferenceField('Body', deref_document=False), default=[])

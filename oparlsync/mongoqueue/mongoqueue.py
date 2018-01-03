@@ -110,27 +110,44 @@ class MongoQueue(object):
     def stats(self):
         """Get statistics on the queue.
 
-        Use sparingly requires a collection lock.
         """
+        stats = {
+            "available": 0,
+            "locked": 0,
+            "errors": 0,
+            "total": 0
+        }
+        items = []
+        for job in self.collection.find():
+            item = job['payload']
+            if job['locked_by'] != None:
+                stats['locked'] += 1
+                item['status'] = 'locked'
+            elif job['attempts'] > self.max_attempts:
+                stats['errors'] += 1
+                item['status'] = 'error'
+            else:
+                stats['available'] += 1
+                item['status'] = 'available'
+            stats['total'] += 1
+            items.append(item)
+        return stats
 
-        js = """function queue_stat(){
-        return db.eval(
-        function(){
-           var a = db.%(collection)s.count(
-               {'locked_by': null,
-                'attempts': {$lt: %(max_attempts)i}});
-           var l = db.%(collection)s.count({'locked_by': /.*/});
-           var e = db.%(collection)s.count(
-               {'attempts': {$gte: %(max_attempts)i}});
-           var t = db.%(collection)s.count();
-           return [a, l, e, t];
-           })}""" % {
-             "collection": self.collection.name,
-             "max_attempts": self.max_attempts}
+    def details(self):
+        """Get details on the queue.
 
-        return dict(zip(
-            ["available", "locked", "errors", "total"],
-            self.collection.database.eval(js)))
+        """
+        items = []
+        for job in self.collection.find():
+            item = job['payload']
+            if job['locked_by'] != None:
+                item['status'] = 'locked'
+            elif job['attempts'] > self.max_attempts:
+                item['status'] = 'error'
+            else:
+                item['status'] = 'available'
+            items.append(item)
+        return items
 
 
 class Job(object):

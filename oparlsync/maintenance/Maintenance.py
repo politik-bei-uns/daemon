@@ -13,6 +13,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import os
 import sys
 import json
+import hashlib
+from pymongo import MongoClient
 from _datetime import datetime
 from geojson import Feature
 import requests
@@ -54,6 +56,10 @@ class Maintenance():
             self.elasticsearch_regions()
         elif args[0] == 'update_street_locality':
             self.update_street_locality()
+        elif args[0] == 'old_import':
+            self.old_import()
+        elif args[0] == 'sync_bodies':
+            self.sync_body(body_id)
 
     def remove(self, body_id):
         self.body_config = self.main.get_body_config(body_id)
@@ -82,11 +88,25 @@ class Maintenance():
         pass
 
     def generate_regions(self):
+        """
         for region_path in os.listdir(self.main.config.REGION_DIR):
             with open('%s/%s' % (self.main.config.REGION_DIR, region_path)) as region_file:
                 region_data = json.load(region_file)
                 if region_data['active']:
                     self.generate_region(region_data)
+        """
+        for parent_region in Region.objects.all():
+            for child_region in Region.objects(rgs__startswith = parent_region.rgs, level = parent_region.level + 2).all():
+                child_region.parent = parent_region.id
+                child_region.save()
+            rgs = parent_region.rgs
+            while len(rgs) < 12:
+                rgs += '0'
+            parent_region.body = []
+            for body in Body.objects(rgs=rgs).all():
+                parent_region.body.append(body.id)
+            parent_region.save()
+
 
     def generate_region(self, region_data):
         rgs = region_data['rgs']
@@ -206,3 +226,134 @@ class Maintenance():
                 if 'properties' not in location.geojson:
                     location.geojson['properties'] = {}
                 location.geojson['properties']['locality'] = location.body[0].name
+
+    def sync_body(self, body_id):
+        self.body_config = self.main.get_body_config(body_id)
+        query = {
+            'uid': body_id
+        }
+        object_json = {
+            '$set': {
+                'uid': body_id,
+                'rgs': self.body_config['rgs'],
+                'originalId': self.body_config['url']
+            }
+        }
+        self.main.db_raw.body.find_one_and_update(
+            query,
+            object_json,
+            upsert=True
+        )
+
+    def old_import(self):
+        client = MongoClient()
+        db = client.ris
+        for body_raw in db.body.find():
+            body = Body()
+            body.id = body_raw['_id']
+            print('save body %s' % body.id)
+            body.legacy = True
+            body.rgs = body_raw['regionalschlüssel']
+            body.name = body_raw['name']
+            body.created = body_raw['created']
+            body.modified = body_raw['modified']
+            body.save()
+
+
+        for paper_raw in db.paper.find(no_cursor_timeout=True):
+            if 'body' not in paper_raw:
+                continue
+            paper = Paper()
+            paper.id = paper_raw['_id']
+            paper.legacy = True
+            print('save paper %s' % paper.id)
+
+            paper.body = paper_raw['body'].id
+
+            if 'name' in paper_raw:
+                paper.name = paper_raw['name']
+            elif 'title' in paper_raw:
+                paper.name = paper_raw['title']
+
+            if 'reference' in paper_raw:
+                paper.reference = paper_raw['reference']
+            elif 'nameShort' in paper_raw:
+                paper.reference = paper_raw['nameShort']
+
+            if 'publishedDate' in paper_raw:
+                paper.date = paper_raw['publishedDate']
+
+            if 'paperType' in paper_raw:
+                paper.paperType = paper_raw['paperType']
+            if 'created' in paper_raw:
+                paper.created = paper_raw['created']
+            if 'modified' in paper_raw:
+                paper.modified = paper_raw['modified']
+
+            if 'mainFile' in paper_raw:
+                file = File()
+                file.id = paper_raw['mainFile'].id
+                file.save()
+                paper.mainFile = file.id
+            if 'auxiliaryFile' in paper_raw:
+                paper.auxiliaryFile = []
+                for file_raw in paper_raw['auxiliaryFile']:
+                    file = File()
+                    file.id = file_raw.id
+                    file.save()
+                    paper.auxiliaryFile.append(file.id)
+
+            paper.save()
+
+
+        for file_raw in db.file.find(no_cursor_timeout=True):
+            if 'body' not in file_raw or 'mimetype' not in file_raw:
+                continue
+            file = File()
+            file.id = file_raw['_id']
+            file.legacy = True
+            file.mimeType = file_raw['mimetype']
+            file.body = file_raw['body'].id
+            print('save file %s from body %s' % (file.id, file.body))
+            if 'filename' in file_raw:
+                file.fileName = file_raw['filename']
+            if 'name' in file_raw:
+                file.fileName = file_raw['name']
+            if 'created' in file_raw:
+                file.created = file_raw['created']
+            if 'modified' in file_raw:
+                file.modified = file_raw['modified']
+            if 'filename' in file_raw:
+                file.fileName = file_raw['filename']
+
+            r = requests.get('https://politik-bei-uns.de/file/%s/download' % file.id, stream=True)
+
+            if r.status_code != 200:
+                file.downloaded = False
+            else:
+                file_path = os.path.join(self.main.config.TMP_OLD_IMPORT_DIR, str(file.id))
+                with open(file_path, 'wb') as file_data:
+                    for chunk in r.iter_content(chunk_size=32 * 1024):
+                        if chunk:
+                            file_data.write(chunk)
+                file.size = os.path.getsize(file_path)
+                with open(file_path, 'rb') as checksum_file:
+                    checksum_file_content = checksum_file.read()
+                    file.sha1Checksum = hashlib.sha1(checksum_file_content).hexdigest()
+
+                metadata = {
+                    'Content-Disposition': 'filename=%s' % file.name
+                }
+
+                self.main.s3.fput_object(
+                    self.main.config.S3_BUCKET,
+                    "files/%s/%s" % (file.body, file.id),
+                    file_path,
+                    content_type=file.mimeType,
+                    metadata= {
+                        'Content-Disposition': 'filename=%s' % file.name
+                    }
+                )
+
+                file.downloaded = True
+            file.save()

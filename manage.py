@@ -62,7 +62,7 @@ if args[1] == 'queue':
     oparlsync.queue_clear()
   
   if args[2] == 'list':
-    oparlsync.queue_list()
+    oparlsync.queue_details()
   
   if args[2] == 'stats':
     oparlsync.queue_stats()

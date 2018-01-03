@@ -40,6 +40,7 @@ class Paper(Document, OParlDocument):
     deleted = BooleanField()
 
     # Politik bei Uns Felder
+    legacy = BooleanField(vendor_attribute=True)
     originalId = StringField(vendor_attribute=True)
     mirrorId = StringField(vendor_attribute=True)
     georeferenceStatus = StringField(vendor_attribute=True)

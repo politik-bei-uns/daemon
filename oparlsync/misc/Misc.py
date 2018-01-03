@@ -44,7 +44,11 @@ class Misc():
         if not self.main.config.ENABLE_PROCESSING:
             return
         self.body_config = self.main.get_body_config(body_id)
+        if not self.body_config:
+            return
         body = Body.objects(originalId=self.body_config['url']).no_cache().first()
+        if not body:
+            return
 
         statistics = {
             'objects': {
