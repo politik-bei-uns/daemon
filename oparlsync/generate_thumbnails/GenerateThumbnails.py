@@ -65,7 +65,7 @@ class GenerateThumbnails():
                 file_path_old = file_path
                 file_path = file_path + '-old'
                 cmd = ('%s --to=PDF -o %s %s' % (self.main.config.ABIWORD_COMMAND, file_path, file_path_old))
-                self.execute(cmd)
+                self.main.execute(cmd, body_id)
 
             # create folders
             max_folder = os.path.join(self.main.config.TMP_THUMBNAIL_DIR, str(file.id) + '-max')
@@ -84,7 +84,7 @@ class GenerateThumbnails():
             max_path = max_folder + os.sep + '%d.png'
             cmd = '%s -dQUIET -dSAFER -dBATCH -dNOPAUSE -sDisplayHandle=0 -sDEVICE=png16m -r100 -dTextAlphaBits=4 -sOutputFile=%s -f %s' % (
             self.main.config.GHOSTSCRIPT_COMMAND, max_path, file_path)
-            self.execute(cmd)
+            self.main.execute(cmd, body_id)
 
             # generate thumbnails based on max images
             for max_file in os.listdir(max_folder):
@@ -111,7 +111,7 @@ class GenerateThumbnails():
                     resizedim.save(out_path, subsampling=0, quality=80)
                     # optimize image
                     cmd = '%s --preserve-perms %s' % (self.main.config.JPEGOPTIM_PATH, out_path)
-                    self.execute(cmd)
+                    self.main.execute(cmd, body_id)
                     # create mongodb object and append it to file
                     file.thumbnail[str(num)]['pages'][str(size)] = {
                         'width': width,
@@ -165,16 +165,3 @@ class GenerateThumbnails():
         factor = float(height) / float(original_height)
         width = int(round(factor * original_width))
         return (width, height)
-
-    def execute(self, cmd):
-        new_env = os.environ.copy()
-        new_env['XDG_RUNTIME_DIR'] = '/tmp/'
-        output, error = subprocess.Popen(
-            cmd.split(' '), stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, env=new_env).communicate()
-        try:
-            if error is not None and error.decode().strip() != '' and 'WARNING **: clutter failed 0, get a life.' not in error.decode():
-                self.main.datalog.debug("pdf output at command %s; output: %s" % (cmd, error.decode()))
-        except UnicodeDecodeError:
-            self.main.datalog.debug("pdf output at command %s; output: %s" % (cmd, error))
-        return output

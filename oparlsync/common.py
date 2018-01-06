@@ -19,6 +19,7 @@ import pymongo
 import smtplib
 import requests
 import mongoengine
+import subprocess
 from copy import deepcopy
 from minio import Minio
 from minio.policy import Policy
@@ -266,3 +267,27 @@ class Common():
                 for chunk in data.stream(32 * 1024):
                     file_data.write(chunk)
             return True
+
+    def execute(self, cmd, body_id):
+        new_env = os.environ.copy()
+        new_env['XDG_RUNTIME_DIR'] = '/tmp/'
+        try:
+            output, error = subprocess.Popen(
+                cmd.split(' '),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=new_env
+            ).communicate(timeout=self.config.SUBPROCESS_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            self.send_mail(
+                self.config.ADMINS,
+                'critical error at oparl-mirror',
+                'command %s at %s takes forever' % (cmd, body_id)
+            )
+            return False
+        try:
+            if error is not None and error.decode().strip() != '' and 'WARNING **: clutter failed 0, get a life.' not in error.decode():
+                self.datalog.debug("pdf output at command %s; output: %s" % (cmd, error.decode()))
+        except UnicodeDecodeError:
+            self.datalog.debug("pdf output at command %s; output: %s" % (cmd, error))
+        return output

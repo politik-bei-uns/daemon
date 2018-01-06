@@ -62,6 +62,7 @@ class DefaultConfig(object):
     MAIL_USERNAME = ''
     MAIL_PASSWORD = ''
 
+    SUBPROCESS_TIMEOUT = 600
     PDFTOTEXT_COMMAND = '/usr/bin/pdftotext'
     ABIWORD_COMMAND = '/usr/bin/abiword'
     GHOSTSCRIPT_COMMAND = '/usr/bin/gs'

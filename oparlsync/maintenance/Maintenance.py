@@ -88,13 +88,13 @@ class Maintenance():
         pass
 
     def generate_regions(self):
-        """
+
         for region_path in os.listdir(self.main.config.REGION_DIR):
             with open('%s/%s' % (self.main.config.REGION_DIR, region_path)) as region_file:
                 region_data = json.load(region_file)
                 if region_data['active']:
                     self.generate_region(region_data)
-        """
+
         for parent_region in Region.objects.all():
             for child_region in Region.objects(rgs__startswith = parent_region.rgs, level = parent_region.level + 2).all():
                 child_region.parent = parent_region.id

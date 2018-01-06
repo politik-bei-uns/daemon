@@ -59,7 +59,7 @@ class GenerateFulltext():
                 os.unlink(file_path)
                 continue
 
-            text = self.execute(cmd)
+            text = self.main.execute(cmd, body_id)
             if text is not None:
                 text = text.decode().strip().replace(u"\u00a0", " ")
 
@@ -74,13 +74,3 @@ class GenerateFulltext():
                 file.save()
 
             os.unlink(file_path)
-
-    def execute(self, cmd):
-        new_env = os.environ.copy()
-        new_env['XDG_RUNTIME_DIR'] = '/tmp/'
-        output, error = subprocess.Popen(
-            cmd.split(' '), stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, env=new_env).communicate()
-        if error is not None and error.decode().strip() != '' and 'WARNING **: clutter failed 0, get a life.' not in error.decode():
-            self.main.datalog.debug("pdf output at command %s; output: %s" % (cmd, error.decode()))
-        return output
