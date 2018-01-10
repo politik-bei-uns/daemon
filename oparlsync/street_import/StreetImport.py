@@ -51,7 +51,6 @@ class StreetImport():
             return
 
         # download and uncompress geofabrik data
-        """
         self.main.datalog.debug('downloading http://download.geofabrik.de/%s' % self.body_config['geofabrik_package'])
         r = requests.get('http://download.geofabrik.de/%s' % self.body_config['geofabrik_package'], stream=True)
         with open(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm.bz2'), 'wb') as f:
@@ -87,7 +86,7 @@ class StreetImport():
             os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.poly'),
             os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.osm')
         ), shell=True)
-        """
+
         # collect streets and street numbers
         osm = StreetCollector()
         self.main.datalog.info("reading file ...")
