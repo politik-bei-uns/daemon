@@ -182,6 +182,7 @@ class OparlDownload():
                 self.last_update = result['lastSync'].replace(microsecond=0, tzinfo=local_time_zone)
             else:
                 self.last_update = False
+
             self.save_object(Body, body_raw)
             self.organization_list_url = body_raw['organization']
             self.person_list_url = body_raw['person']

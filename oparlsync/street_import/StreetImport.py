@@ -51,6 +51,7 @@ class StreetImport():
             return
 
         # download and uncompress geofabrik data
+        """
         self.main.datalog.debug('downloading http://download.geofabrik.de/%s' % self.body_config['geofabrik_package'])
         r = requests.get('http://download.geofabrik.de/%s' % self.body_config['geofabrik_package'], stream=True)
         with open(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm.bz2'), 'wb') as f:
@@ -86,7 +87,7 @@ class StreetImport():
             os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.poly'),
             os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.osm')
         ), shell=True)
-
+        """
         # collect streets and street numbers
         osm = StreetCollector()
         self.main.datalog.info("reading file ...")
@@ -121,13 +122,11 @@ class StreetImport():
         self.main.datalog.info("gathering addresses ...")
         for address in osm.addresses:
             if address['name'] not in streets:
-                self.main.datalog.info("%s missing" % street_fragment['name'])
+                self.main.datalog.info("%s missing" % address['name'])
                 continue
             base_address = {
                 'type': 'Feature',
                 'geometry': {
-                    'type': 'Polygon',
-                    'coordinates': [[]],
                 },
                 'properties': {
                     'name': address['name'],
@@ -144,33 +143,42 @@ class StreetImport():
                         if address[field] not in streets[address['name']]['street']['properties'][field]:
                             streets[address['name']]['street']['properties'][field].append(address[field])
             # set nodes
-            for point in address['nodes']:
+            if address['type'] == 'point':
+
                 if point not in osm.nodes:
                     self.main.datalog.info("missing point %s" % point)
                     continue
-                base_address['geometry']['coordinates'][0].append(osm.nodes[point])
+                base_address['geometry'] = {
+                    'type': 'Point',
+                    'coordinates': osm.nodes[address['node']]
+                }
+            elif address['type'] == 'polygon':
+                base_address['geometry'] = {
+                    'type': 'Polygon',
+                    'coordinates': [[]],
+                }
+                for point in address['nodes']:
+                    if point not in osm.nodes:
+                        self.main.datalog.info("missing point %s" % point)
+                        continue
+                    base_address['geometry']['coordinates'][0].append(osm.nodes[point])
 
-            # filter incomplete polygons
-            # if base_address['geometry']['coordinates'][0][0][0] != base_address['geometry']['coordinates'][0][-1][0]:
-            #    continue
-            # if base_address['geometry']['coordinates'][0][0][1] != base_address['geometry']['coordinates'][0][-1][1]:
-            #    continue
 
-            if address['number'] in streets[address['name']]['numbers'] and \
-                            streets[address['name']]['numbers'][address['number']]['geometry'][
-                                'type'] != 'MultiPolygon':
+            if address['number'] in streets[address['name']]['numbers'] and base_address['geometry']['type'] == 'Point':
+                continue
+            if address['number'] in streets[address['name']]['numbers'] and streets[address['name']]['numbers'][address['number']]['geometry']['type'] == 'Polygon' and base_address['geometry']['type'] != 'Point':
                 streets[address['name']]['numbers'][address['number']]['geometry']['type'] = 'MultiPolygon'
-                streets[address['name']]['numbers'][address['number']]['geometry']['coordinates'] = [
-                    streets[address['name']]['numbers'][address['number']]['geometry']['coordinates']]
-                streets[address['name']]['numbers'][address['number']]['geometry']['coordinates'].append(
-                    base_address['geometry']['coordinates'])
+                streets[address['name']]['numbers'][address['number']]['geometry']['coordinates'] = [streets[address['name']]['numbers'][address['number']]['geometry']['coordinates']]
+                streets[address['name']]['numbers'][address['number']]['geometry']['coordinates'].append(base_address['geometry']['coordinates'])
             else:
                 streets[address['name']]['numbers'][address['number']] = base_address
 
         for street_name, street in streets.items():
-            street_obj = Street()
-            street_obj.body = self.body
-            street_obj.streetName = street['street']['properties']['name']
+            street_obj = Street.objects(body=self.body, streetName = street['street']['properties']['name']).first()
+            if not street_obj:
+                street_obj = Street()
+                street_obj.body = self.body
+                street_obj.streetName = street['street']['properties']['name']
             if 'postal_code' in street['street']['properties']:
                 street_obj.postalCode = street['street']['properties']['postal_code']
             if 'sub_locality' in street['street']['properties']:
@@ -180,6 +188,7 @@ class StreetImport():
             else:
                 street_obj.locality = [self.body.name]
                 street['street']['properties']['locality'] = [self.body.name]
+            print(street_obj.locality)
             # validate geojson
             geojson_check = Feature(geometry=street['street']['geometry'])
             if geojson_check.is_valid:
@@ -187,10 +196,12 @@ class StreetImport():
             else:
                 self.main.datalog.warn('invalid location found: %s' % json.dumps(street['street']['geometry']))
             for street_number_name, street_number in street['numbers'].items():
-                street_number_obj = StreetNumber()
-                street_number_obj.body = self.body
-                street_number_obj.streetName = street_number['properties']['name']
-                street_number_obj.streetNumber = street_number['properties']['number']
+                street_number_obj = StreetNumber.objects(body=self.body, streetName = street_number['properties']['name'], streetNumber=street_number['properties']['number']).first()
+                if not street_number_obj:
+                    street_number_obj = StreetNumber()
+                    street_number_obj.body = self.body
+                    street_number_obj.streetName = street_number['properties']['name']
+                    street_number_obj.streetNumber = street_number['properties']['number']
                 if 'postal_code' in street_number:
                     street_number_obj.postalCode = street_number['properties']['postal_code']
                 if 'sub_locality' in street_number:
@@ -207,12 +218,13 @@ class StreetImport():
                 else:
                     self.main.datalog.warn('invalid location found: %s' % json.dumps(street_number['geometry']))
                 street_number_obj.save()
-                street_obj.streetNumber.append(street_number_obj)
+                if street_number_obj not in street_obj.streetNumber:
+                    street_obj.streetNumber.append(street_number_obj)
             street_obj.save()
         self.main.datalog.debug('tidy up')
 
-        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.rel'))
-        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.osm'))
-        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.poly'))
-        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm'))
+        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.rel'))
+        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.osm'))
+        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.poly'))
+        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm'))
 

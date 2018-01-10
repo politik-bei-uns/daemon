@@ -21,3 +21,4 @@ class Street(Document, OParlDocument):
     subLocality = ListField(StringField(fulltext=True))
     locality = ListField(StringField(fulltext=True))
     geojson = DictField(geojson=True)
+    location = ReferenceField('Location', deref_street=True)

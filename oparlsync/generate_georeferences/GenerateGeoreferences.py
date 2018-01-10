@@ -10,9 +10,10 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import re
 import geojson
 import datetime
-from ..models import Street, Body, File, Location
+from ..models import Street, Body, File, Location, StreetNumber
 
 
 class GenerateGeoreferences():
@@ -28,33 +29,75 @@ class GenerateGeoreferences():
         self.body_config = self.main.get_body_config(body_id)
         self.body = Body.objects(originalId=self.body_config['url']).first()
 
-        streets = Street.objects(body=self.body).all()
+        self.assign_locations_to_street_numbers()
+        self.check_for_streets()
+
+
+
+    street_number_regexp = re.compile('(\d+)(.*)')
+
+    def assign_locations_to_street_numbers(self):
+        for location in Location.objects(body=self.body).no_cache().all():
+            if location.streetAddress and not (location.street or location.streetNumber):
+                street_name_str, street_number_str = self.get_address_parts(location.streetAddress)
+                street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_str).first()
+                if not street_number:
+                    street_number_check = self.street_number_regexp.match(street_number_str)
+                    if street_number_check.group(2):
+                        street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_check.group(1)).first()
+                        if not street_number:
+                            print('%s %s not found' % (street_name_str, street_number_str))
+                            continue
+                    else:
+                        print('%s %s not found' % (street_name_str, street_number_str))
+                        continue
+
+                location.type = 'address'
+                location.streetName = street_number.streetName
+                if street_number.postalCode:
+                    location.postalCode = street_number.postalCode
+                if street_number.subLocality:
+                    location.subLocality = street_number.subLocality
+                if street_number.locality:
+                    location.locality = street_number.locality
+                location.geojson = street_number.geojson
+                location.streetNumber = street_number
+                location.save()
+                street_number.location = location
+                street_number.save()
+
+
+    def check_for_streets(self):
+
+        streets = Street.objects(body=self.body).no_cache().all()
         for street in streets:
-            files = File.objects(body=self.body, georeferencesStatus__exists=False ).search_text(
-                '"' + street.streetName + '"').all()
+            # todo: use ES index to have aliases like str. -> strasse
+            files = File.objects(body=self.body).search_text('"' + street.streetName + '"').all()
             for file in files:
-                self.main.datalog.debug('Street %s found in File %s' % (street.streetName, file.id))
+
                 locations = []
+                text = []
                 if file.name:
-                    if street.streetName in file.name:
-                        locations += self.check_for_street_numbers(file, street, file.name)
+                    text.append(file.name)
                 if file.text:
-                    if street.streetName in file.text:
-                        for location in self.check_for_street_numbers(file, street, file.text):
-                            if location not in locations:
-                                locations.append(location)
+                    text.append(file.text)
+                if len(text):
+                    text = ' '.join(text)
+                    if street.streetName in text:
+                        locations = self.check_for_street_numbers(street, text, file.id)
                 # use whole street
                 if not len(locations):
-                    locations.append(self.create_location(
-                        file,
+                    self.main.datalog.debug('Street %s found in File %s' % (street.streetName, file.id))
+                    self.create_location(
                         'street',
                         street.streetName,
                         None,
                         street.postalCode,
                         street.subLocality,
                         street.locality,
-                        street.geojson
-                    ))
+                        street.geojson,
+                        streetObj=street
+                    )
                 for paper in file.paper:
                     for location in locations:
                         if location not in paper.location:
@@ -68,7 +111,7 @@ class GenerateGeoreferences():
                 file.georeferencesGenerated = datetime.datetime.now()
                 file.save()
 
-    def check_for_street_numbers(self, file, street, text):
+    def check_for_street_numbers(self, street, text, file_id):
         locations = []
         if street.streetNumber:
             for street_number in street.streetNumber:
@@ -83,8 +126,8 @@ class GenerateGeoreferences():
                                 continue
                     if not do_save:
                         continue
+                    self.main.datalog.debug('Adresse %s %s found in File %s' % (street_number.streetName, street_number.streetNumber, file_id))
                     locations.append(self.create_location(
-                        file,
                         'address',
                         street_number.streetName,
                         street_number.streetNumber,
@@ -95,16 +138,14 @@ class GenerateGeoreferences():
                     ))
         return locations
 
-    def create_location(self, file, type, streetName, streetNumber, postalCode, subLocality, locality, geojson):
-        query = {
-            'streetAddress': streetName,
-            'autogenerated': True
+    def create_location(self, type, streetName, streetNumber, postalCode, subLocality, locality, geojson, streetObj=None, streetNumberObj=None):
+        base_query = {
+            'streetAddress': streetName + ('' if type == 'street' else ' ' + streetNumber)
         }
-        if streetNumber:
-            query['streetAddress'] = query['streetAddress'] + ' ' + streetNumber
-            query['locationType'] = 'address'
-        else:
-            query['locationType'] = 'street'
+
+        query = base_query.copy()
+
+        query['locationType'] = type
         if postalCode:
             if type == 'street':
                 if len(postalCode):
@@ -124,20 +165,53 @@ class GenerateGeoreferences():
             else:
                 query['locality'] = locality
 
-        location = Location.objects(**query).no_cache()
-        if location.count():
-            location = location.first()
+        location = Location.objects(**base_query).no_cache().first()
+        if location:
             if location.body:
                 if len(location.body):
                     if self.body not in location.body:
                         location.body.append(self.body)
         else:
             location = Location()
+            query['autogenerated'] = True
             location.created = datetime.datetime.now()
             location.body = [self.body]
         for key, value in query.items():
             setattr(location, key, value)
         location.modified = datetime.datetime.now()
         location.geojson = geojson
+        if type == 'street':
+            if streetObj:
+                location.street = streetObj
+        elif type == 'address':
+            if streetNumberObj:
+                location.streetNumber = streetNumberObj
         location.save()
+        if type == 'street':
+            if streetObj:
+                streetObj.location = location
+                streetObj.save()
+        elif type == 'address':
+            if streetNumberObj:
+                streetNumberObj.location = location
+                streetNumberObj.save()
+
         return location
+
+    street_regexp = re.compile('(.*?)\s*(\d+)\s*(.*)')
+
+    def get_address_parts(self, text):
+        match = self.street_regexp.match(self.fix_address_text(text))
+        if match:
+            name = match.group(1)
+            number = match.group(2)
+            if match.group(3):
+                number += match.group(3).lower()
+            return name, number
+        return False, False
+
+
+    def fix_address_text(self, text):
+        text = text.replace('str.', 'straße')
+        text = text.replace('strasse', 'straße')
+        return text

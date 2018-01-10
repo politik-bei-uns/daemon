@@ -21,3 +21,4 @@ class StreetNumber(Document, OParlDocument):
     subLocality = ListField(StringField())
     locality = StringField()
     geojson = DictField(geojson=True)
+    location = ReferenceField('Location')

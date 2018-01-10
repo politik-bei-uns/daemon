@@ -40,7 +40,8 @@ class StreetCollector(osmium.SimpleHandler):
                 'postal_code': way.tags.get('addr:postcode', None),
                 'sub_locality': way.tags.get('addr:suburb', None),
                 'locality': way.tags.get('addr:city', None),
-                'nodes': []
+                'nodes': [],
+                'type': 'polygon'
             }
             for node in way.nodes:
                 address['nodes'].append(node.ref)
@@ -48,4 +49,16 @@ class StreetCollector(osmium.SimpleHandler):
 
     def node(self, node):
         if node:
+            if node.tags.get('addr:street', None) and node.tags.get('addr:housenumber', None):
+                address = {
+                    'osmid': node.id,
+                    'name': node.tags.get('addr:street', None),
+                    'number': node.tags.get('addr:housenumber', None),
+                    'postal_code': node.tags.get('addr:postcode', None),
+                    'sub_locality': node.tags.get('addr:suburb', None),
+                    'locality': node.tags.get('addr:city', None),
+                    'node': node.id,
+                    'type': 'point'
+                }
+                self.addresses.append(address)
             self.nodes[node.id] = [node.location.lon, node.location.lat]

@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import json
 from datetime import datetime
 from ..models import *
+from mongoengine.base.datastructures import BaseList
 
 
 class ElasticsearchImport():
@@ -32,8 +33,8 @@ class ElasticsearchImport():
             'updated': 0
         }
         self.street_index()
-        self.paper_location_index()
-        self.paper_index()
+        #self.paper_location_index()
+        #self.paper_index()
 
     def street_index(self):
 
@@ -41,10 +42,18 @@ class ElasticsearchImport():
             now = datetime.utcnow()
             index_name = 'street-' + now.strftime('%Y%m%d-%H%M')
 
+            mapping = self.es_mapping_generator(Street, 'deref_street')
+
+            mapping['properties']['autocomplete'] = {
+                "type": 'text',
+                "analyzer": "autocomplete_import_analyzer",
+                "search_analyzer": "autocomplete_search_analyzer"
+            }
+
             self.main.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
                 'mappings': {
-                    'street': self.es_mapping_generator(Street, 'deref_street')
+                    'street': mapping
                 }
             })
 
@@ -60,15 +69,34 @@ class ElasticsearchImport():
             index_name = list(self.main.es.indices.get_alias('street-latest'))[0]
 
         for street in Street.objects(body=self.body).no_cache():
-            street_dict = street.to_dict(deref='deref_street', format_datetime=True, delete='delete_street')
+            street_dict = street.to_dict(deref='deref_street', format_datetime=True, delete='delete_street', clean_none=True)
             if 'geojson' in street_dict:
-                del street_dict['geojson']
+                street_dict['geosearch'] = street_dict['geojson']['geometry']
+                street_dict['geojson'] = json.dumps(street_dict['geojson'])
+            street_dict['autocomplete'] = ''
+            if 'streetName' in street_dict:
+                if street_dict['streetName']:
+                    street_dict['autocomplete'] = street_dict['streetName'] + ', '
+
+            if 'postalCode' in street_dict:
+                if street_dict['postalCode']:
+                    street_dict['autocomplete'] += street_dict['postalCode'][0] + ' '
+
+            if 'locality' in street_dict:
+                if street_dict['locality']:
+                    street_dict['autocomplete'] += street_dict['locality'][0]
+
+            if 'subLocality' in street_dict:
+                if street_dict['subLocality']:
+                    street_dict['autocomplete'] += ' (' + street_dict['subLocality'][0] + ')'
+
             new_doc = self.main.es.index(
                 index=index_name,
                 id=str(street.id),
                 doc_type='street',
                 body=street_dict
             )
+
             if new_doc['result'] in ['created', 'updated']:
                 self.statistics[new_doc['result']] += 1
             else:
@@ -151,12 +179,12 @@ class ElasticsearchImport():
                 if location_dict['geojson']:
                     if 'geometry' in location_dict['geojson']:
                         location_dict['geosearch'] = location_dict['geojson']['geometry']
-                        for field in ['paper']: #['person', 'organization', 'meeting', 'paper']:
-                            if field + 's' in location_dict:
-                                if type(location_dict[field + 's']) is list:
+                        for field in ['paper']:
+                            if field in location_dict:
+                                if type(location_dict[field]) is list:
                                     if 'properties' not in location_dict['geojson']:
                                         location_dict['geojson']['properties'] = {}
-                                    location_dict['geojson']['properties'][field + '-count'] = len(location_dict[field + 's'])
+                                    location_dict['geojson']['properties'][field + '-count'] = len(location_dict[field])
                     else:
                         del location_dict['geojson']
                 else:
@@ -292,6 +320,16 @@ class ElasticsearchImport():
                             'replace': ''
                         }
                     },
+                    'tokenizer': {
+                        'autocomplete': {
+                            "type": "edge_ngram",
+                            "min_gram": 2,
+                            "max_gram": 10,
+                            "token_chars": [
+                                "letter"
+                            ]
+                        }
+                    },
                     'analyzer': {
                         # Der Standard-Analyzer, welcher case-insensitive Volltextsuche bietet
                         'default_analyzer': {
@@ -318,7 +356,7 @@ class ElasticsearchImport():
                                 'sort_char_filter'
                             ]
                         },
-                        'livesearch_import_analyzer': {
+                        'suggest_import_analyzer': {
                             'tokenizer': 'keyword',
                             'filter': [
                                 'lowercase',
@@ -332,7 +370,7 @@ class ElasticsearchImport():
                             ]
                         },
                         # Analyzer für die Live-Suche. Keine Stopwords, damit z.B. die -> diesel funktioniert
-                        'livesearch_search_analyzer': {
+                        'suggest_search_analyzer': {
                             'tokenizer': 'keyword',
                             'filter': [
                                 'lowercase',
@@ -342,6 +380,15 @@ class ElasticsearchImport():
                             'char_filter': [
                                 'html_strip'
                             ]
+                        },
+                        'autocomplete_import_analyzer': {
+                            'tokenizer': 'autocomplete',
+                            "filter": [
+                                "lowercase"
+                            ]
+                        },
+                        'autocomplete_search_analyzer': {
+                            "tokenizer": "lowercase"
                         }
                     }
                 }
