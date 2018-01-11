@@ -33,8 +33,8 @@ class ElasticsearchImport():
             'updated': 0
         }
         self.street_index()
-        #self.paper_location_index()
-        #self.paper_index()
+        self.paper_location_index()
+        self.paper_index()
 
     def street_index(self):
 
