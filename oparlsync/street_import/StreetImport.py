@@ -187,7 +187,7 @@ class StreetImport():
             else:
                 street_obj.locality = [self.body.name]
                 street['street']['properties']['locality'] = [self.body.name]
-            print(street_obj.locality)
+
             # validate geojson
             geojson_check = Feature(geometry=street['street']['geometry'])
             if geojson_check.is_valid:

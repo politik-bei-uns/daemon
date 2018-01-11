@@ -40,6 +40,8 @@ class GenerateGeoreferences():
         for location in Location.objects(body=self.body).no_cache().all():
             if location.streetAddress and not (location.street or location.streetNumber):
                 street_name_str, street_number_str = self.get_address_parts(location.streetAddress)
+                if not street_name_str or not street_number_str:
+                    continue
                 street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_str).first()
                 if not street_number:
                     street_number_check = self.street_number_regexp.match(street_number_str)
