@@ -37,16 +37,16 @@ class GenerateGeoreferences():
     street_number_regexp = re.compile('(\d+)(.*)')
 
     def assign_locations_to_street_numbers(self):
-        for location in Location.objects(body=self.body).no_cache().all():
+        for location in Location.objects(body=self.body).timeout(False).no_cache().all():
             if location.streetAddress and not (location.street or location.streetNumber):
                 street_name_str, street_number_str = self.get_address_parts(location.streetAddress)
                 if not street_name_str or not street_number_str:
                     continue
-                street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_str).first()
+                street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_str).no_cache().first()
                 if not street_number:
                     street_number_check = self.street_number_regexp.match(street_number_str)
                     if street_number_check.group(2):
-                        street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_check.group(1)).first()
+                        street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_check.group(1)).no_cache().first()
                         if not street_number:
                             print('%s %s not found' % (street_name_str, street_number_str))
                             continue
@@ -70,13 +70,11 @@ class GenerateGeoreferences():
 
 
     def check_for_streets(self):
-
-        streets = Street.objects(body=self.body).no_cache().all()
+        streets = Street.objects(body=self.body).no_cache().timeout(False).all()
         for street in streets:
             # todo: use ES index to have aliases like str. -> strasse
-            files = File.objects(body=self.body).search_text('"' + street.streetName + '"').all()
+            files = File.objects(body=self.body).search_text('"' + street.streetName + '"').no_cache().timeout(False).all()
             for file in files:
-
                 locations = []
                 text = []
                 if file.name:
@@ -167,7 +165,7 @@ class GenerateGeoreferences():
             else:
                 query['locality'] = locality
 
-        location = Location.objects(**base_query).no_cache().first()
+        location = Location.objects(**base_query).no_cache().timeout(False).first()
         if location:
             if location.body:
                 if len(location.body):
