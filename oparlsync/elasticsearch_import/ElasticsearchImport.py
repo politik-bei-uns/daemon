@@ -179,12 +179,17 @@ class ElasticsearchImport():
                 if location_dict['geojson']:
                     if 'geometry' in location_dict['geojson']:
                         location_dict['geosearch'] = location_dict['geojson']['geometry']
-                        for field in ['paper']:
-                            if field in location_dict:
-                                if type(location_dict[field]) is list:
-                                    if 'properties' not in location_dict['geojson']:
-                                        location_dict['geojson']['properties'] = {}
-                                    location_dict['geojson']['properties'][field + '-count'] = len(location_dict[field])
+                        if 'paper' in location_dict:
+                            if type(location_dict['paper']) is list:
+                                if 'properties' not in location_dict['geojson']:
+                                    location_dict['geojson']['properties'] = {}
+                                if not len(location_dict['paper']):
+                                    continue
+                                location_dict['geojson']['properties']['paper-count'] = len(location_dict['paper'])
+                            else:
+                                continue
+                        else:
+                            continue
                     else:
                         del location_dict['geojson']
                 else:
@@ -210,6 +215,9 @@ class ElasticsearchImport():
     def es_mapping_generator(self, base_object, deref=None, nested=False, delete=None):
         mapping = {}
         for field in base_object._fields:
+            if delete:
+                if hasattr(base_object._fields[field], delete):
+                    continue
             if base_object._fields[field].__class__.__name__ == 'ListField':
                 if base_object._fields[field].field.__class__.__name__ == 'ReferenceField':
                     if getattr(base_object._fields[field].field, deref):
@@ -238,6 +246,7 @@ class ElasticsearchImport():
                 }
             else:
                 mapping[field] = self.es_mapping_field_generator(base_object._fields[field])
+
             if not mapping[field]:
                 del mapping[field]
 

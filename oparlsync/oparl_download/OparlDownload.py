@@ -95,6 +95,8 @@ class OparlDownload():
             return
         start_time = time.time()
         self.get_body()
+        if not self.body_uid:
+            return
         for object in self.body_objects:
             self.get_list(object)
         self.main.statuslog.info('Body %s sync done. Results:' % body_id)
@@ -148,63 +150,65 @@ class OparlDownload():
                 self.save_object(oparl_object, data)
 
     def get_body(self, set_last_sync=True):
+        self.body_uid = False
         if self.main.config.USE_MIRROR:
             body_raw = self.get_url_json(self.main.config.OPARL_MIRROR_URL + '/body-by-id?id=' + urllib.parse.quote_plus(self.body_config['url']), wait=False)
         else:
             body_raw = self.get_url_json(self.body_config['url'], wait=False)
-        if body_raw:
-            # save originalId from body to ensure that uid can be used
-            query = {
-                'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
+        if not body_raw:
+            return
+        # save originalId from body to ensure that uid can be used
+        query = {
+            'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
+        }
+        object_json = {
+            '$set': {
+                'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id'],
+                'rgs': self.body_config['rgs'],
+                'uid': self.body_config['id']
             }
-            object_json = {
-                '$set': {
-                    'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id'],
-                    'rgs': self.body_config['rgs'],
-                    'uid': self.body_config['id']
-                }
-            }
-            if self.main.config.USE_MIRROR:
-                object_json['$set']['mirrorId'] = body_raw['id']
-            self.correct_document_values(object_json['$set'])
-            self.mongodb_request_count += 1
-            start_time = time.time()
-            result = self.main.db_raw.body.find_one_and_update(
-                query,
-                object_json,
-                upsert=True,
-                return_document=ReturnDocument.AFTER
-            )
-            self.body_uid = result['_id']
+        }
+        if self.main.config.USE_MIRROR:
+            object_json['$set']['mirrorId'] = body_raw['id']
+        self.correct_document_values(object_json['$set'])
+        self.mongodb_request_count += 1
+        start_time = time.time()
+        result = self.main.db_raw.body.find_one_and_update(
+            query,
+            object_json,
+            upsert=True,
+            return_document=ReturnDocument.AFTER
+        )
+        self.body_uid = result['_id']
 
-            if 'lastSync' in result:
-                local_time_zone = dateutil.tz.gettz('Europe/Berlin')
-                self.last_update = result['lastSync'].replace(microsecond=0, tzinfo=local_time_zone)
-            else:
-                self.last_update = False
+        if 'lastSync' in result:
+            local_time_zone = dateutil.tz.gettz('Europe/Berlin')
+            self.last_update = result['lastSync'].replace(microsecond=0, tzinfo=local_time_zone)
+        else:
+            self.last_update = False
 
-            self.save_object(Body, body_raw)
-            self.organization_list_url = body_raw['organization']
-            self.person_list_url = body_raw['person']
-            self.meeting_list_url = body_raw['meeting']
-            self.paper_list_url = body_raw['paper']
-            if self.main.config.USE_MIRROR and self.last_update:
-                self.membership_list_url = body_raw['membership']
-                self.agenda_item_list_url = body_raw['agendaItem']
-                self.consultation_list_url = body_raw['consultation']
-                self.location_list_url = body_raw['location']
-                self.file_list_url = body_raw['file']
-                self.body_objects += [
-                    Membership,
-                    AgendaItem,
-                    Consultation,
-                    File,
-                    Location
-                ]
-            # set last sync if everything is done so far
-            if set_last_sync:
-                body_raw['lastSync'] = self.start_time.isoformat()
-            self.save_object(Body, body_raw)
+        self.save_object(Body, body_raw)
+        self.organization_list_url = body_raw['organization']
+        self.person_list_url = body_raw['person']
+        self.meeting_list_url = body_raw['meeting']
+        self.paper_list_url = body_raw['paper']
+        if self.main.config.USE_MIRROR and self.last_update:
+            self.membership_list_url = body_raw['membership']
+            self.agenda_item_list_url = body_raw['agendaItem']
+            self.consultation_list_url = body_raw['consultation']
+            self.location_list_url = body_raw['location']
+            self.file_list_url = body_raw['file']
+            self.body_objects += [
+                Membership,
+                AgendaItem,
+                Consultation,
+                File,
+                Location
+            ]
+        # set last sync if everything is done so far
+        if set_last_sync:
+            body_raw['lastSync'] = self.start_time.isoformat()
+        self.save_object(Body, body_raw)
 
     def get_list(self, object, list_url=False):
         if list_url:

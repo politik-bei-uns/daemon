@@ -173,7 +173,7 @@ class Maintenance():
             self.main.es.indices.create(index=index_name, body={
                 'settings': es_import.es_settings(),
                 'mappings': {
-                    'region': es_import.es_mapping_generator(Region)
+                    'region': es_import.es_mapping_generator(Region, deref='deref_region', delete='delete_region')
                 }
             })
 
