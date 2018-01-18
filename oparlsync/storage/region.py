@@ -14,6 +14,7 @@ from mongoengine import Document, BooleanField, ReferenceField, StringField, Lis
 from .oparl_document import OParlDocument
 
 class Region(Document, OParlDocument):
+    bodies = ListField(ReferenceField('Body', deref_stret=False, deref_region=False), default=[])
     name = StringField()
     rgs = StringField()
     level = IntField()

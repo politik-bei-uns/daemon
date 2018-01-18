@@ -45,7 +45,7 @@ class OparlSync():
             for body in bodies:
                 if body[-4:] == 'json':
                     body_config = self.common.get_body_config(filename=body)
-                    if body_config['active']:
+                    if body_config['active'] and 'legacy' not in body_config:
                         payload = {
                             'module': module,
                             'body_id': body_config['id']

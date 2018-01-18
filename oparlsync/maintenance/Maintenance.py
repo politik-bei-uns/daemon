@@ -14,6 +14,7 @@ import os
 import sys
 import json
 import hashlib
+import threading
 from pymongo import MongoClient
 from _datetime import datetime
 from geojson import Feature
@@ -92,7 +93,7 @@ class Maintenance():
         for region_path in os.listdir(self.main.config.REGION_DIR):
             with open('%s/%s' % (self.main.config.REGION_DIR, region_path)) as region_file:
                 region_data = json.load(region_file)
-                if region_data['active']:
+                if region_data['active'] and 'legacy' not in region_data:
                     self.generate_region(region_data)
 
         for parent_region in Region.objects.all():
@@ -357,3 +358,4 @@ class Maintenance():
 
                 file.downloaded = True
             file.save()
+            print('thread count: %s' % threading.active_count())
