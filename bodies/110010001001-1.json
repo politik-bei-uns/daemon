@@ -1,0 +1,10 @@
+{
+  "id": "110010001001-1",
+  "rgs": "110010001001",
+  "url": "",
+  "active": true,
+  "legacy": true,
+  "osm_relation": "16347",
+  "geofabrik_package": "/europe/germany/berlin-latest.osm.bz2",
+  "name": "Berlin Mitte"
+}

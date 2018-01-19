@@ -1,0 +1,10 @@
+{
+  "id": "110050005005-1",
+  "rgs": "110050005005",
+  "url": "",
+  "active": true,
+  "legacy": true,
+  "osm_relation": "16343",
+  "geofabrik_package": "/europe/germany/berlin-latest.osm.bz2",
+  "name": "Berlin Spandau"
+}

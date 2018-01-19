@@ -115,6 +115,8 @@ class OparlDownload():
 
     def run_single(self, body_id, *args):
         self.body_config = self.main.get_body_config(body_id)
+        if 'legacy' in self.body_config:
+            return
         self.last_update = False
         try:
             body = Body.objects(originalId=self.body_config['url']).no_cache().first()
@@ -196,7 +198,7 @@ class OparlDownload():
             self.membership_list_url = body_raw['membership']
             self.agenda_item_list_url = body_raw['agendaItem']
             self.consultation_list_url = body_raw['consultation']
-            self.location_list_url = body_raw['location']
+            self.location_list_url = body_raw['locationList']
             self.file_list_url = body_raw['file']
             self.body_objects += [
                 Membership,
