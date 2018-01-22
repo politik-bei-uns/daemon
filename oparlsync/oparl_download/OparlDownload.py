@@ -177,7 +177,7 @@ class OparlDownload():
         }
 
         if 'legacy' not in self.body_config:
-            object_json = ['$set']['originalId'] = body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
+            object_json['$set']['originalId'] = body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
         if self.main.config.ENABLE_PROCESSING:
             region = Region.objects(rgs=self.body_config['rgs']).first()
             if region:

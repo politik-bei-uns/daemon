@@ -317,10 +317,13 @@ class Maintenance():
         object_json = {
             '$set': {
                 'uid': body_id,
-                'rgs': self.body_config['rgs'],
-                'originalId': self.body_config['url']
+                'rgs': self.body_config['rgs']
             }
         }
+        if self.main.config.ENABLE_PROCESSING:
+            region = Region.objects(rgs=self.body_config['rgs']).first()
+            if region:
+                object_json['$set']['region'] = region.id
         self.main.db_raw.body.find_one_and_update(
             query,
             object_json,
