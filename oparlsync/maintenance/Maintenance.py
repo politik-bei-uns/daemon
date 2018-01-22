@@ -60,6 +60,8 @@ class Maintenance():
         elif args[0] == 'old_import':
             self.old_import()
         elif args[0] == 'sync_bodies':
+            self.sync_bodies()
+        elif args[0] == 'sync_body':
             self.sync_body(body_id)
         elif args[0] == 'correct_regions':
             self.correct_regions()
@@ -308,6 +310,10 @@ class Maintenance():
                 if 'properties' not in location.geojson:
                     location.geojson['properties'] = {}
                 location.geojson['properties']['locality'] = location.body[0].name
+
+    def sync_bodies(self):
+        for body in Body.objects.all():
+            self.sync_body(body.uid)
 
     def sync_body(self, body_id):
         self.body_config = self.main.get_body_config(body_id)
