@@ -61,6 +61,12 @@ class Maintenance():
             self.old_import()
         elif args[0] == 'sync_bodies':
             self.sync_body(body_id)
+        elif args[0] == 'correct_regions':
+            self.correct_regions()
+        elif args[0] == 'delete_all_locations':
+            self.delete_all_locations()
+        elif args[0] == 'delete_last_sync':
+            self.delete_last_sync(body_id)
 
     def remove(self, body_id):
         self.body_config = self.main.get_body_config(body_id)
@@ -90,16 +96,37 @@ class Maintenance():
 
     def generate_regions(self):
 
+        max_level_overwrite = {}
+        min_level_overwrite = {}
         for region_path in os.listdir(self.main.config.REGION_DIR):
             with open('%s/%s' % (self.main.config.REGION_DIR, region_path)) as region_file:
                 region_data = json.load(region_file)
-                if region_data['active'] and 'legacy' not in region_data:
+                if region_data['active']:# and 'legacy' not in region_data:
                     self.generate_region(region_data)
+                    if 'osm_level_max' in region_data:
+                        max_level_overwrite[region_data['rgs']] = region_data['osm_level_max']
+                    if 'osm_level_min' in region_data:
+                        min_level_overwrite[region_data['rgs']] = region_data['osm_level_min']
 
-        for parent_region in Region.objects.all():
-            for child_region in Region.objects(rgs__startswith = parent_region.rgs, level = parent_region.level + 2).all():
-                child_region.parent = parent_region.id
-                child_region.save()
+        for parent_region in Region.objects.order_by('level').all():
+            next_level = 10
+            for child_region in Region.objects(rgs__startswith = parent_region.rgs, level__gt = parent_region.level).all():
+                if child_region.level < next_level:
+                    next_level = child_region.level
+            if next_level < 10:
+                for child_region in Region.objects(rgs__startswith=parent_region.rgs, level=next_level).all():
+                    child_region.parent = parent_region.id
+                    child_region.save()
+
+            if parent_region.parent:
+                parent_region.level_min = parent_region.parent.level_max
+            else:
+                parent_region.level_min = parent_region.level
+            if parent_region.rgs in max_level_overwrite:
+                parent_region.level_max = max_level_overwrite[parent_region.rgs]
+            else:
+                parent_region.level_max = next_level
+
             rgs = parent_region.rgs
             while len(rgs) < 12:
                 rgs += '0'
@@ -107,6 +134,23 @@ class Maintenance():
             for body in Body.objects(rgs=rgs).all():
                 parent_region.body.append(body.id)
             parent_region.save()
+
+        regions = []
+        for region_raw in Region.objects(parent__exists=False).all():
+            regions.append({
+                'id': str(region_raw.id),
+                'name': region_raw.name,
+                'rgs': region_raw.rgs,
+                'level': region_raw.level,
+                'children': self.region_get_children(region_raw.id)
+            })
+        option = Option.objects(key='region_cache').first()
+        if not option:
+            option = Option()
+            option.key = 'region_cache'
+        option.value = json.dumps(regions)
+        option.save()
+
 
 
     def generate_region(self, region_data):
@@ -156,14 +200,38 @@ class Maintenance():
             'rgs': region_data['rgs']
         }
         if geojson_check.is_valid:
-            Region.objects(rgs=region_data['rgs']).update_one(
-                set__name=region_data['name'],
-                set__level=region_data['osm_level'],
-                set__rgs=region_data['rgs'],
-                set__bounds=bounds,
-                set__geojson=geojson,
-                upsert=True,
-            )
+            kwargs = {
+                'set__name': region_data['name'],
+                'set__level': region_data['osm_level'],
+                'set__rgs': region_data['rgs'],
+                'set__bounds': bounds,
+                'set__geojson': geojson,
+                'upsert': True
+            }
+            if 'legacy' in region_data:
+                if region_data['legacy']:
+                    kwargs['legacy'] = True
+            Region.objects(rgs=region_data['rgs']).update_one(**kwargs)
+
+
+
+    def region_get_children(self, region_id):
+        regions = []
+        for region_raw in Region.objects(parent=region_id).all():
+            region = {
+                'id': str(region_raw.id),
+                'name': region_raw.name,
+                'rgs': region_raw.rgs,
+                'level': region_raw.level,
+                'body': []
+            }
+            for body in region_raw.body:
+                region['body'].append(str(body.id))
+            children = self.region_get_children(region_raw.id)
+            if len(children):
+                region['children'] = children
+            regions.append(region)
+        return regions
 
     def elasticsearch_regions(self):
         if not self.main.es.indices.exists_alias(name='region-latest'):
@@ -171,10 +239,15 @@ class Maintenance():
             index_name = 'region-' + now.strftime('%Y%m%d-%H%M')
 
             es_import = ElasticsearchImport(self.main)
+
+            mapping = es_import.es_mapping_generator(Region, deref='deref_region', delete='delete_region')
+            mapping['properties']['body_count'] = {
+                'type': 'integer'
+            }
             self.main.es.indices.create(index=index_name, body={
                 'settings': es_import.es_settings(),
                 'mappings': {
-                    'region': es_import.es_mapping_generator(Region, deref='deref_region', delete='delete_region')
+                    'region': mapping
                 }
             })
 
@@ -194,11 +267,19 @@ class Maintenance():
             region_dict = region.to_dict()
             region_dict['geosearch'] = {
                 'type': 'envelope',
-                'coordinates': region_dict['bounds'],
+                'coordinates': region_dict['bounds']
             }
+            region_dict['geojson']['properties']['legacy'] = region.legacy
+            region_dict['geojson']['properties']['bodies'] = []
+            region_dict['body_count'] = len(region.body)
+            for body in region.body:
+                region_dict['geojson']['properties']['bodies'].append(str(body.id))
+
             region_dict['geojson'] = json.dumps(region_dict['geojson'])
             del region_dict['bounds']
-            # try:
+
+
+
             new_doc = self.main.es.index(
                 index=index_name,
                 id=str(region.id),
@@ -359,3 +440,60 @@ class Maintenance():
                 file.downloaded = True
             file.save()
             print('thread count: %s' % threading.active_count())
+
+    def correct_regions(self):
+        for body in Body.objects.no_cache().all():
+            if body.region:
+                for street in Street.objects(body=body).no_cache().all():
+                    street.region = body.region
+                    street.save()
+                for street_number in StreetNumber.objects(body=body).no_cache().all():
+                    street_number.region = body.region
+                    street_number.save()
+
+    def delete_all_locations(self, body):
+        Location.objects.delete()
+
+        query = {}
+        if body != 'all':
+            query['uid'] = body
+        object_json = {
+            '$unset': {
+                'location': ''
+            }
+        }
+        self.main.db_raw.body.find_one_and_update(
+            query,
+            object_json
+        )
+        self.main.db_raw.person.find_one_and_update(
+            query,
+            object_json
+        )
+        self.main.db_raw.organization.find_one_and_update(
+            query,
+            object_json
+        )
+        self.main.db_raw.meeting.find_one_and_update(
+            query,
+            object_json
+        )
+        self.main.db_raw.paper.find_one_and_update(
+            query,
+            object_json
+        )
+
+    def delete_last_sync(self, body):
+        query = {}
+        if body != 'all':
+            query['uid'] = body
+
+        object_json = {
+            '$unset': {
+                'lastSync': ''
+            }
+        }
+        self.main.db_raw.body.update_many(
+            query,
+            object_json
+        )

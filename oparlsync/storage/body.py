@@ -17,7 +17,6 @@ from .oparl_document import OParlDocument
 
 class Body(Document, OParlDocument):
     type = 'https://schema.oparl.org/1.0/Body'
-    region = ReferenceField('Region')
     shortName = StringField()
     name = StringField()
     website = StringField()
@@ -39,6 +38,7 @@ class Body(Document, OParlDocument):
     deleted = BooleanField()
 
     # Politik bei Uns Felder
+    region = ReferenceField('Region', vendor_attribute=True)
     uid = StringField(vendor_attribute=True)
     legacy = BooleanField(vendor_attribute=True)
     originalId = StringField(vendor_attribute=True)

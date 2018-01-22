@@ -14,10 +14,12 @@ from mongoengine import Document, BooleanField, ReferenceField, StringField, Lis
 from .oparl_document import OParlDocument
 
 class Region(Document, OParlDocument):
-    bodies = ListField(ReferenceField('Body', deref_stret=False, deref_region=False), default=[])
     name = StringField()
     rgs = StringField()
     level = IntField()
+    level_min = IntField()
+    level_max = IntField()
+    legacy = BooleanField(default=False)
     bounds = ListField(ListField(), delete_region=True)
     geojson = DictField(geojson=True)
     parent = ReferenceField('Region', deref_document=False, deref_region=False)

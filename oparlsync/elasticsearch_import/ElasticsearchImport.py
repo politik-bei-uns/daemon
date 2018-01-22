@@ -112,6 +112,10 @@ class ElasticsearchImport():
             index_name = 'paper-' + now.strftime('%Y%m%d-%H%M')
 
             mapping = self.es_mapping_generator(Paper, 'deref_paper')
+            mapping['properties']['region'] = {
+                'type': 'text'
+            }
+
 
             self.main.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
@@ -132,9 +136,19 @@ class ElasticsearchImport():
         else:
             index_name = list(self.main.es.indices.get_alias('paper-latest'))[0]
 
+
+        regions = []
+        region = self.body.region
+        while (region):
+            regions.append(str(region.id))
+            region = region.parent
+
         for paper in Paper.objects(body=self.body).no_cache():
             paper_dict = paper.to_dict(deref='deref_paper', format_datetime=True, delete='delete_paper', clean_none=True)
             paper_dict['body_name'] = paper.body.name
+            paper_dict['region'] = regions
+            paper_dict['legacy'] = 'legacy' in paper_dict
+
             new_doc = self.main.es.index(
                 index=index_name,
                 id=str(paper.id),
@@ -154,10 +168,15 @@ class ElasticsearchImport():
             now = datetime.utcnow()
             index_name = 'paper-location-' + now.strftime('%Y%m%d-%H%M')
 
+            mapping = self.es_mapping_generator(Location, 'deref_paper_location')
+            mapping['properties']['region'] = {
+                'type': 'text'
+            }
+
             self.main.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
                 'mappings': {
-                    'location': self.es_mapping_generator(Location, 'deref_paper_location')
+                    'location': mapping
                 }
             })
 
@@ -173,8 +192,16 @@ class ElasticsearchImport():
         else:
             index_name = list(self.main.es.indices.get_alias('paper-location-latest'))[0]
 
+        regions = []
+        region = self.body.region
+        while (region):
+            regions.append(str(region.id))
+            region = region.parent
+
         for location in Location.objects(body=self.body).no_cache():
             location_dict = location.to_dict(deref='deref_paper_location', format_datetime=True, delete='delete_paper_location')
+            location_dict['region'] = regions
+
             if 'geojson' in location_dict:
                 if location_dict['geojson']:
                     if 'geometry' in location_dict['geojson']:

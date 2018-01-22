@@ -97,8 +97,15 @@ class OparlDownload():
         self.get_body()
         if not self.body_uid:
             return
+
         for object in self.body_objects:
             self.get_list(object)
+
+        # set last sync if everything is done so far
+        body = Body.objects(id=self.body_uid).first()
+        body.lastSync = self.start_time.isoformat()
+        body.save()
+
         self.main.statuslog.info('Body %s sync done. Results:' % body_id)
         self.main.statuslog.info('mongodb requests:   %s' % self.mongodb_request_count)
         self.main.statuslog.info('http requests:      %s' % self.http_request_count)
@@ -163,6 +170,8 @@ class OparlDownload():
         query = {
             'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
         }
+
+
         object_json = {
             '$set': {
                 'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id'],
@@ -170,6 +179,10 @@ class OparlDownload():
                 'uid': self.body_config['id']
             }
         }
+        if self.main.config.ENABLE_PROCESSING:
+            region = Region.objects(rgs=self.body_config['rgs']).first()
+            if region:
+                object_json['$set']['region'] = region.id
         if self.main.config.USE_MIRROR:
             object_json['$set']['mirrorId'] = body_raw['id']
         self.correct_document_values(object_json['$set'])
@@ -188,8 +201,8 @@ class OparlDownload():
             self.last_update = result['lastSync'].replace(microsecond=0, tzinfo=local_time_zone)
         else:
             self.last_update = False
-
         self.save_object(Body, body_raw)
+
         self.organization_list_url = body_raw['organization']
         self.person_list_url = body_raw['person']
         self.meeting_list_url = body_raw['meeting']
@@ -207,10 +220,6 @@ class OparlDownload():
                 File,
                 Location
             ]
-        # set last sync if everything is done so far
-        if set_last_sync:
-            body_raw['lastSync'] = self.start_time.isoformat()
-        self.save_object(Body, body_raw)
 
     def get_list(self, object, list_url=False):
         if list_url:
@@ -318,6 +327,8 @@ class OparlDownload():
             object_instance.mirrorId = object_instance.originalId
             if self.main.config.OPARL_MIRROR_PREFIX + ':originalId' in object_raw:
                 object_instance.originalId = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId']
+            else:
+                del object_instance.originalId
         else:
             query = {
                 'originalId': object_instance.originalId

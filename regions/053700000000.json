@@ -1,8 +1,8 @@
 {
-  "rgs": "053700004004",
-  "active": true,
+  "rgs": "05370",
+  "active": false,
   "osm_relation": "62767",
-  "osm_level": 8,
+  "osm_level": 6,
   "geofabrik_package": "/europe/germany/nordrhein-westfalen/koeln-regbez-latest.osm.bz2",
   "name": "Kreis Heinsberg"
 }

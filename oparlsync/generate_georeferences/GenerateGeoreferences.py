@@ -29,12 +29,23 @@ class GenerateGeoreferences():
         self.body_config = self.main.get_body_config(body_id)
         self.body = Body.objects(originalId=self.body_config['url']).first()
 
+        if not self.body.region:
+            return
+        # TODO: find a way to geocode bodies with multible sub-regions
+        if self.body.region.level_max != 10:
+            return
+
+        self.assign_regions()
         self.assign_locations_to_street_numbers()
         self.check_for_streets()
 
 
-
     street_number_regexp = re.compile('(\d+)(.*)')
+
+    def assign_regions(self):
+        for location in Location.objects(body=self.body, region__exists=False).timeout(False).no_cache().all():
+            location.region = self.body.region
+            location.save()
 
     def assign_locations_to_street_numbers(self):
         for location in Location.objects(body=self.body).timeout(False).no_cache().all():
@@ -42,7 +53,7 @@ class GenerateGeoreferences():
                 street_name_str, street_number_str = self.get_address_parts(location.streetAddress)
                 if not street_name_str or not street_number_str:
                     continue
-                street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_str).no_cache().first()
+                street_number = StreetNumber.objects(streetName__iexact=street_name_str, streetNumber__iexact=street_number_str, region=self.body.region).no_cache().first()
                 if not street_number:
                     street_number_check = self.street_number_regexp.match(street_number_str)
                     if street_number_check.group(2):
@@ -68,12 +79,11 @@ class GenerateGeoreferences():
                 street_number.location = location
                 street_number.save()
 
-
     def check_for_streets(self):
-        streets = Street.objects(body=self.body).no_cache().timeout(False).all()
+        streets = Street.objects(region=self.body.region).no_cache().timeout(False).all()
         for street in streets:
             # todo: use ES index to have aliases like str. -> strasse
-            files = File.objects(body=self.body).search_text('"' + street.streetName + '"').no_cache().timeout(False).all()
+            files = File.objects(body=self.body, georeferencesGenerated__exists=False).search_text('"' + street.streetName + '"').no_cache().timeout(False).all()
             for file in files:
                 locations = []
                 text = []

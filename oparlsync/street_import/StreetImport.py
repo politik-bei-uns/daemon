@@ -15,7 +15,7 @@ import json
 import requests
 import subprocess
 from geojson import Feature
-from ..storage import Street, StreetNumber, Body
+from ..storage import Street, StreetNumber, Region
 from .StreetCollector import StreetCollector
 
 
@@ -23,49 +23,49 @@ class StreetImport():
     def __init__(self, main):
         self.main = main
 
-    def run(self, body_id):
-        self.save_streets(body_id)
+    def run(self, region_id):
+        self.save_streets(region_id)
 
-    def save_streets(self, body_id):
+    def save_streets(self, region_id):
         if not self.main.config.ENABLE_PROCESSING:
             return
-        self.body_config = self.main.get_body_config(body_id)
+        self.region_config = self.main.get_region_config(region_id)
         query = {
-            'originalId': self.body_config['url']
+            'rgs': self.region_config['rgs']
         }
         object_json = {
             '$set': {
-                'originalId': self.body_config['url']
+                'rgs': self.region_config['rgs']
             }
         }
-        result = self.main.db_raw.body.find_one_and_update(
+        result = self.main.db_raw.region.find_one_and_update(
             query,
             object_json,
             upsert=True
         )
-        self.body = Body.objects(originalId=self.body_config['url']).no_cache().first()
-        self.body_uid = self.body.id
+        self.region = Region.objects(rgs=self.region_config['rgs']).no_cache().first()
+        self.region_uid = self.region.id
 
-        if not self.body_config['osm_relation'] or not self.body_config['geofabrik_package']:
+        if not self.region_config['osm_relation'] or not self.region_config['geofabrik_package']:
             self.main.datalog.error('fatal": missing osm_relation or geofabrik_package.')
             return
 
         # download and uncompress geofabrik data
-        self.main.datalog.debug('downloading http://download.geofabrik.de/%s' % self.body_config['geofabrik_package'])
-        r = requests.get('http://download.geofabrik.de/%s' % self.body_config['geofabrik_package'], stream=True)
-        with open(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm.bz2'), 'wb') as f:
+        self.main.datalog.debug('downloading http://download.geofabrik.de/%s' % self.region_config['geofabrik_package'])
+        r = requests.get('http://download.geofabrik.de/%s' % self.region_config['geofabrik_package'], stream=True)
+        with open(os.path.join(self.main.config.TMP_OSM_DIR, region_id + '-geofabrik.osm.bz2'), 'wb') as f:
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk:
                     f.write(chunk)
-        self.main.datalog.debug('uncompressing %s-geofabrik.osm.bz2' % body_id)
-        subprocess.call('bunzip2 %s' % (os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm.bz2')),
+        self.main.datalog.debug('uncompressing %s-geofabrik.osm.bz2' % region_id)
+        subprocess.call('bunzip2 %s' % (os.path.join(self.main.config.TMP_OSM_DIR, region_id + '-geofabrik.osm.bz2')),
                         shell=True)
 
         # download relation
-        self.main.datalog.debug('downloading osm relation %s' % self.body_config['osm_relation'])
-        r = requests.get('https://www.openstreetmap.org/api/0.6/relation/%s/full' % self.body_config['osm_relation'],
+        self.main.datalog.debug('downloading osm relation %s' % self.region_config['osm_relation'])
+        r = requests.get('https://www.openstreetmap.org/api/0.6/relation/%s/full' % self.region_config['osm_relation'],
                          stream=True)
-        with open(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.rel'), 'wb') as f:
+        with open(os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.rel'), 'wb') as f:
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk:
                     f.write(chunk)
@@ -74,23 +74,23 @@ class StreetImport():
         self.main.datalog.debug('create poly file')
         subprocess.call('perl %s < %s > %s' % (
             self.main.config.REL2POLY_PATH,
-            os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.rel'),
-            os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.poly')
+            os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.rel'),
+            os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.poly')
         ), shell=True)
 
         # process geofabrik data with relation
         self.main.datalog.debug('get all data inside of poly file')
         subprocess.call('%s --read-xml %s --bounding-polygon file=%s --write-xml file=%s' % (
             self.main.config.OSMOSIS_PATH,
-            os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm'),
-            os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.poly'),
-            os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.osm')
+            os.path.join(self.main.config.TMP_OSM_DIR, region_id + '-geofabrik.osm'),
+            os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.poly'),
+            os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.osm')
         ), shell=True)
 
         # collect streets and street numbers
         osm = StreetCollector()
         self.main.datalog.info("reading file ...")
-        osm.apply_file(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.osm'))
+        osm.apply_file(os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.osm'))
         self.main.datalog.info("gathering streets ...")
         streets = {}
         for street_fragment in osm.street_fragments:
@@ -173,10 +173,10 @@ class StreetImport():
                 streets[address['name']]['numbers'][address['number']] = base_address
 
         for street_name, street in streets.items():
-            street_obj = Street.objects(body=self.body, streetName = street['street']['properties']['name']).first()
+            street_obj = Street.objects(region=self.region, streetName = street['street']['properties']['name']).first()
             if not street_obj:
                 street_obj = Street()
-                street_obj.body = self.body
+                street_obj.body = self.region
                 street_obj.streetName = street['street']['properties']['name']
             if 'postal_code' in street['street']['properties']:
                 street_obj.postalCode = street['street']['properties']['postal_code']
@@ -185,8 +185,8 @@ class StreetImport():
             if 'locality' in street['street']['properties']:
                 street_obj.locality = street['street']['properties']['locality']
             else:
-                street_obj.locality = [self.body.name]
-                street['street']['properties']['locality'] = [self.body.name]
+                street_obj.locality = [self.region.name]
+                street['street']['properties']['locality'] = [self.region.name]
 
             # validate geojson
             geojson_check = Feature(geometry=street['street']['geometry'])
@@ -195,10 +195,10 @@ class StreetImport():
             else:
                 self.main.datalog.warn('invalid location found: %s' % json.dumps(street['street']['geometry']))
             for street_number_name, street_number in street['numbers'].items():
-                street_number_obj = StreetNumber.objects(body=self.body, streetName = street_number['properties']['name'], streetNumber=street_number['properties']['number']).first()
+                street_number_obj = StreetNumber.objects(body=self.region, streetName = street_number['properties']['name'], streetNumber=street_number['properties']['number']).first()
                 if not street_number_obj:
                     street_number_obj = StreetNumber()
-                    street_number_obj.body = self.body
+                    street_number_obj.body = self.region
                     street_number_obj.streetName = street_number['properties']['name']
                     street_number_obj.streetNumber = street_number['properties']['number']
                 if 'postal_code' in street_number:
@@ -208,8 +208,8 @@ class StreetImport():
                 if 'locality' in street_number:
                     street_number_obj.locality = street_number['properties']['locality']
                 else:
-                    street_number_obj.locality = self.body.name
-                    street_number['properties']['locality'] = self.body.name
+                    street_number_obj.locality = self.region.name
+                    street_number['properties']['locality'] = self.region.name
                 # validate geojson
                 geojson_check = Feature(geometry=street_number['geometry'])
                 if geojson_check.is_valid:
