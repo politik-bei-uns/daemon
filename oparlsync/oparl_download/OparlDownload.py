@@ -97,7 +97,6 @@ class OparlDownload():
         self.get_body()
         if not self.body_uid:
             return
-
         for object in self.body_objects:
             self.get_list(object)
 
@@ -122,8 +121,6 @@ class OparlDownload():
 
     def run_single(self, body_id, *args):
         self.body_config = self.main.get_body_config(body_id)
-        if 'legacy' in self.body_config:
-            return
         self.last_update = False
         try:
             body = Body.objects(originalId=self.body_config['url']).no_cache().first()
@@ -168,17 +165,19 @@ class OparlDownload():
             return
         # save originalId from body to ensure that uid can be used
         query = {
-            'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
+            'uid': self.body_config['id']
         }
 
 
         object_json = {
             '$set': {
-                'originalId': body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id'],
                 'rgs': self.body_config['rgs'],
                 'uid': self.body_config['id']
             }
         }
+
+        if 'legacy' not in self.body_config:
+            object_json = ['$set']['originalId'] = body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
         if self.main.config.ENABLE_PROCESSING:
             region = Region.objects(rgs=self.body_config['rgs']).first()
             if region:
