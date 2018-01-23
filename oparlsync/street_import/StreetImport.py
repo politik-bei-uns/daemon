@@ -176,7 +176,7 @@ class StreetImport():
             street_obj = Street.objects(region=self.region, streetName = street['street']['properties']['name']).first()
             if not street_obj:
                 street_obj = Street()
-                street_obj.body = self.region
+                street_obj.region = self.region
                 street_obj.streetName = street['street']['properties']['name']
             if 'postal_code' in street['street']['properties']:
                 street_obj.postalCode = street['street']['properties']['postal_code']
@@ -195,10 +195,10 @@ class StreetImport():
             else:
                 self.main.datalog.warn('invalid location found: %s' % json.dumps(street['street']['geometry']))
             for street_number_name, street_number in street['numbers'].items():
-                street_number_obj = StreetNumber.objects(body=self.region, streetName = street_number['properties']['name'], streetNumber=street_number['properties']['number']).first()
+                street_number_obj = StreetNumber.objects(region=self.region, streetName = street_number['properties']['name'], streetNumber=street_number['properties']['number']).first()
                 if not street_number_obj:
                     street_number_obj = StreetNumber()
-                    street_number_obj.body = self.region
+                    street_number_obj.region = self.region
                     street_number_obj.streetName = street_number['properties']['name']
                     street_number_obj.streetNumber = street_number['properties']['number']
                 if 'postal_code' in street_number:
@@ -222,8 +222,8 @@ class StreetImport():
             street_obj.save()
         self.main.datalog.debug('tidy up')
 
-        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.rel'))
-        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.osm'))
-        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '.poly'))
-        #os.remove(os.path.join(self.main.config.TMP_OSM_DIR, body_id + '-geofabrik.osm'))
+        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.rel'))
+        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.osm'))
+        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, region_id + '.poly'))
+        os.remove(os.path.join(self.main.config.TMP_OSM_DIR, region_id + '-geofabrik.osm'))
 

@@ -93,6 +93,8 @@ class OparlDownload():
         if not self.body_config:
             self.main.statuslog.error('body id %s configuration not found' % body_id)
             return
+        if 'url' not in self.body_config:
+            return
         start_time = time.time()
         self.get_body()
         if not self.body_uid:

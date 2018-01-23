@@ -14,7 +14,7 @@ from mongoengine import Document, BooleanField, ReferenceField, StringField, Lis
 from .oparl_document import OParlDocument
 
 class Street(Document, OParlDocument):
-    body = ReferenceField('Body', deref_street=False)
+    #body = ReferenceField('Body', deref_street=False)
     region = ReferenceField('Region', deref_street=False)
     streetName = StringField(fulltext=True)
     streetNumber = ListField(ReferenceField('StreetNumber', deref_street=False), default=[])
