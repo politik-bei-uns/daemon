@@ -471,23 +471,31 @@ class Maintenance():
                 'location': ''
             }
         }
-        self.main.db_raw.body.find_one_and_update(
+        self.main.db_raw.body.update_many(
             query,
             object_json
         )
-        self.main.db_raw.person.find_one_and_update(
+        self.main.db_raw.person.update_many(
             query,
             object_json
         )
-        self.main.db_raw.organization.find_one_and_update(
+        self.main.db_raw.organization.update_many(
             query,
             object_json
         )
-        self.main.db_raw.meeting.find_one_and_update(
+        self.main.db_raw.meeting.update_many(
             query,
             object_json
         )
-        self.main.db_raw.paper.find_one_and_update(
+        self.main.db_raw.paper.update_many(
+            query,
+            object_json
+        )
+        self.main.db_raw.street.update_many(
+            query,
+            object_json
+        )
+        self.main.db_raw.street_number.update_many(
             query,
             object_json
         )
