@@ -49,16 +49,16 @@ class Misc():
 
         statistics = {
             'objects': {
-                'legislative_term': LegislativeTerm.objects(body=body).no_cache().count(),
-                'organization': Organization.objects(body=body).no_cache().count(),
-                'person': Person.objects(body=body).no_cache().count(),
-                'membership': Membership.objects(body=body).no_cache().count(),
-                'meeting': Meeting.objects(body=body).no_cache().count(),
-                'agenda_item': AgendaItem.objects(body=body).no_cache().count(),
-                'consultation': Consultation.objects(body=body).no_cache().count(),
-                'paper': Paper.objects(body=body).no_cache().count(),
-                'file': File.objects(body=body).no_cache().count(),
-                'location': Location.objects(body=body).no_cache().count()
+                'legislative_term': LegislativeTerm.objects(body=self.body).no_cache().count(),
+                'organization': Organization.objects(body=self.body).no_cache().count(),
+                'person': Person.objects(body=self.body).no_cache().count(),
+                'membership': Membership.objects(body=self.body).no_cache().count(),
+                'meeting': Meeting.objects(body=self.body).no_cache().count(),
+                'agenda_item': AgendaItem.objects(body=self.body).no_cache().count(),
+                'consultation': Consultation.objects(body=self.body).no_cache().count(),
+                'paper': Paper.objects(body=self.body).no_cache().count(),
+                'file': File.objects(body=self.body).no_cache().count(),
+                'location': Location.objects(body=self.body).no_cache().count()
             }
         }
         body.statistics = statistics
