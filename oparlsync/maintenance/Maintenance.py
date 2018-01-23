@@ -130,8 +130,7 @@ class Maintenance():
                 parent_region.level_max = next_level
 
             rgs = parent_region.rgs
-            while len(rgs) < 12:
-                rgs += '0'
+
             parent_region.body = []
             for body in Body.objects(rgs=rgs).all():
                 parent_region.body.append(body.id)
