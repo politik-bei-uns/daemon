@@ -30,9 +30,11 @@ class GenerateFulltext():
     def run(self, body_id, *args):
         if not self.main.config.ENABLE_PROCESSING:
             return
-        self.body_config = self.main.get_body_config(body_id)
-        body_id = Body.objects(originalId=self.body_config['url']).first().id
-        files = File.objects(textStatus__exists=False, body=body_id).timeout(False).no_cache().all()
+        self.body = Body.objects(uid=body_id).no_cache().first()
+        if not self.body:
+            return
+
+        files = File.objects(textStatus__exists=False, body=self.body.id).timeout(False).no_cache().all()
         for file in files:
             self.main.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()
@@ -59,7 +61,7 @@ class GenerateFulltext():
                 os.unlink(file_path)
                 continue
 
-            text = self.main.execute(cmd, body_id)
+            text = self.main.execute(cmd, self.body.id)
             if text is not None:
                 text = text.decode().strip().replace(u"\u00a0", " ")
 

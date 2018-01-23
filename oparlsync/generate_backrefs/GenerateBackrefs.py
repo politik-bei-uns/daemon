@@ -21,8 +21,9 @@ class GenerateBackrefs():
         pass
 
     def run(self, body_id, *args):
-        self.body_config = self.main.get_body_config(body_id)
-        self.body = Body.objects(originalId=self.body_config['url']).first()
+        self.body = Body.objects(uid=body_id).no_cache().first()
+        if not self.body:
+            return
         self.backrefs_created = 0
 
         # Organization

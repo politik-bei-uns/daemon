@@ -26,8 +26,9 @@ class ElasticsearchImport():
     def run(self, body_id, *args):
         if not self.main.config.ENABLE_PROCESSING:
             return
-        self.body_config = self.main.get_body_config(body_id)
-        self.body = Body.objects(originalId=self.body_config['url']).no_cache().first()
+        self.body = Body.objects(uid=body_id).no_cache().first()
+        if not self.body:
+            return
         self.statistics = {
             'created': 0,
             'updated': 0

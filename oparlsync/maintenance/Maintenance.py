@@ -66,7 +66,7 @@ class Maintenance():
         elif args[0] == 'correct_regions':
             self.correct_regions()
         elif args[0] == 'delete_all_locations':
-            self.delete_all_locations()
+            self.delete_all_locations(body_id)
         elif args[0] == 'delete_last_sync':
             self.delete_last_sync(body_id)
 
