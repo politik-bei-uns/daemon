@@ -62,9 +62,9 @@ class OParlDocument(object):
                         if self._fields[field].__class__.__name__ == 'DateTimeField':
                             if self._fields[field].datetime_format == 'datetime':
                                 result[field] = getattr(self, field).strftime('%Y-%m-%dT%H:%M:%S')
-                            else:
-                                result[field] = getattr(self, field).strftime('%H:%M:%S')
-                                if result[field] == '00:00:00':
+                            elif self._fields[field].datetime_format == 'date':
+                                result[field] = getattr(self, field).strftime('%Y-%m-%d')
+                                if result[field] == '0000-00-00':
                                     result[field] = None
                         else:
                             result[field] = getattr(self, field)
