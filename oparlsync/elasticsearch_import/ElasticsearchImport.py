@@ -69,7 +69,7 @@ class ElasticsearchImport():
         else:
             index_name = list(self.main.es.indices.get_alias('street-latest'))[0]
 
-        for street in Street.objects(body=self.body).no_cache():
+        for street in Street.objects(region=self.body.region).no_cache():
             street_dict = street.to_dict(deref='deref_street', format_datetime=True, delete='delete_street', clean_none=True)
             if 'geojson' in street_dict:
                 street_dict['geosearch'] = street_dict['geojson']['geometry']

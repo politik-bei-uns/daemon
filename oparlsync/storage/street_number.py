@@ -14,7 +14,7 @@ from mongoengine import Document, ReferenceField, StringField, DictField, ListFi
 from .oparl_document import OParlDocument
 
 class StreetNumber(Document, OParlDocument):
-    #body = ReferenceField('Body', deref_street=False)
+    body = ReferenceField('Body', deref_street=False)
     region = ReferenceField('Region', deref_stret=False)
     streetName = StringField()
     streetNumber = StringField()
