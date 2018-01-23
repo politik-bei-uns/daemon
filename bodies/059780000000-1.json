@@ -6,5 +6,6 @@
   "legacy": true,
   "osm_relation": "62420",
   "geofabrik_package": "/europe/germany/nordrhein-westfalen/arnsberg-regbez-latest.osm.bz2",
-  "name": "Kreis Unna"
+  "name": "Kreis Unna",
+  "geocoding": false
 }

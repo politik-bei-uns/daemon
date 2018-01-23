@@ -26,6 +26,12 @@ class GenerateGeoreferences():
     def run(self, body_id, *args):
         if not self.main.config.ENABLE_PROCESSING:
             return
+        self.body_config = self.main.get_body_config(body_id)
+        if not self.body_config:
+            return
+        if 'geocoding' in self.body_config:
+            if self.body_config['geocoding'] == False:
+                return
         self.body = Body.objects(uid=body_id).no_cache().first()
         if not self.body:
             return
