@@ -61,5 +61,5 @@ class Misc():
                 'location': Location.objects(body=self.body).no_cache().count()
             }
         }
-        body.statistics = statistics
-        body.save()
+        self.body.statistics = statistics
+        self.body.save()
