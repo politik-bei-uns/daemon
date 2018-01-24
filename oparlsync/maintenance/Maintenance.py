@@ -539,6 +539,10 @@ class Maintenance():
             if not file.name and file.downloaded:
                 file_path = os.path.join(self.main.config.TMP_FILE_DIR, str(file.id))
                 self.main.get_file(file, file_path)
+                self.main.s3.remove_object(
+                    self.main.config.S3_BUCKET,
+                    "files/%s/%s" % (file.body.id, file.id),
+                )
                 if file.fileName:
                     file_name = file.fileName
                 else:

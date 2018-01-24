@@ -294,7 +294,7 @@ class OparlDownload():
                         if valid_object.__name__ == object_instance._fields[key].document_type_obj:
                             sub_validate = True
                             # Stupid bugfix for Person -> Location is an object id
-                            if object.__name__ == 'Person' and valid_object.__name__ == 'Location' and isinstance(value, str):
+                            if object.__name__ == 'Person' and valid_object.__name__ == 'Location' and isinstance(value, str) and not self.main.config.USE_MIRROR:
                                 value = self.get_url_json(value)
                             if isinstance(value, dict):
                                 sub_object_raw = value

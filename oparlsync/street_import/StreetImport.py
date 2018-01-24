@@ -30,6 +30,8 @@ class StreetImport():
         if not self.main.config.ENABLE_PROCESSING:
             return
         self.region_config = self.main.get_region_config(region_id)
+        if not self.region_config:
+            return
         query = {
             'rgs': self.region_config['rgs']
         }
