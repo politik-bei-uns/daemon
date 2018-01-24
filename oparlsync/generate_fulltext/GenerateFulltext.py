@@ -62,7 +62,7 @@ class GenerateFulltext():
                 continue
 
             text = self.main.execute(cmd, self.body.id)
-            if text is not None:
+            if text:
                 text = text.decode().strip().replace(u"\u00a0", " ")
 
             if not text:

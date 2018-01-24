@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import os
 import sys
 import json
+import minio
 import hashlib
 import threading
 from pymongo import MongoClient
@@ -20,6 +21,7 @@ from _datetime import datetime
 from geojson import Feature
 import requests
 import subprocess
+from slugify import slugify
 import elasticsearch
 from ..models import *
 from ..elasticsearch_import import ElasticsearchImport
@@ -69,6 +71,8 @@ class Maintenance():
             self.delete_all_locations(body_id)
         elif args[0] == 'delete_last_sync':
             self.delete_last_sync(body_id)
+        elif args[0] == 'fix_nameless_files':
+            self.fix_nameless_files()
 
     def remove(self, body_id):
         self.body_config = self.main.get_body_config(body_id)
@@ -338,6 +342,7 @@ class Maintenance():
     def old_import(self):
         client = MongoClient()
         db = client.ris
+        """
         for body_raw in db.body.find():
             body = Body()
             body.id = body_raw['_id']
@@ -395,7 +400,7 @@ class Maintenance():
 
             paper.save()
 
-
+        """
         for file_raw in db.file.find(no_cursor_timeout=True):
             if 'body' not in file_raw or 'mimetype' not in file_raw:
                 continue
@@ -432,21 +437,18 @@ class Maintenance():
                     file.sha1Checksum = hashlib.sha1(checksum_file_content).hexdigest()
 
                 metadata = {
-                    'Content-Disposition': 'filename=%s' % file.name
+                    'Content-Disposition': 'filename=%s' % file.fileName if file.fileName else str(file.id)
                 }
-
                 self.main.s3.fput_object(
                     self.main.config.S3_BUCKET,
                     "files/%s/%s" % (file.body, file.id),
                     file_path,
                     content_type=file.mimeType,
-                    metadata= {
-                        'Content-Disposition': 'filename=%s' % file.name
-                    }
+                    metadata= metadata
                 )
-
                 file.downloaded = True
-            file.save()
+                os.remove(file_path)
+            #file.save()
             print('thread count: %s' % threading.active_count())
 
     def correct_regions(self):
@@ -513,3 +515,50 @@ class Maintenance():
             query,
             object_json
         )
+
+    def fix_nameless_files(self, body=False):
+        mimetypes = {
+            "application/pdf": 'pdf',
+            "image/jpeg": 'jpg',
+            "image/gif": 'gif',
+            "application/zip": 'zip',
+            "image/tiff": 'tiff',
+            "image/x-ms-bmp": 'bmp',
+            "application/msword": 'doc',
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 'docx',
+            "text/html": 'html',
+            "application/vnd.ms-excel": 'xls',
+            "text/rtf": 'rtf',
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 'xlsx',
+            "text/plain": 'txt',
+            "application/vnd.ms-powerpoint": 'ppt'
+        }
+
+        files = File.objects(legacy=True).no_cache().timeout(False).all()
+        for file in files:
+            if not file.name and file.downloaded:
+                file_path = os.path.join(self.main.config.TMP_FILE_DIR, str(file.id))
+                self.main.get_file(file, file_path)
+                if file.fileName:
+                    file_name = file.fileName
+                else:
+                    file_name = str(file.id)
+                    if file.paper:
+                        if len(file.paper):
+                            if file.paper[0].name:
+                                file_name = slugify(file.paper[0].name)
+                    if file.mimeType in mimetypes:
+                        file_name += '.' + mimetypes[file.mimeType]
+                metadata = {
+                    'Content-Disposition': 'filename=%s' % file_name
+                }
+                print('fix file id %s with file name %s' % (file.id, file_name))
+                self.main.s3.fput_object(
+                    self.main.config.S3_BUCKET,
+                    "files/%s/%s" % (file.body.id, file.id),
+                    file_path,
+                    content_type=file.mimeType,
+                    metadata=metadata
+                )
+
+
