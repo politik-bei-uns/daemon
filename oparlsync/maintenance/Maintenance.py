@@ -73,6 +73,8 @@ class Maintenance():
             self.delete_last_sync(body_id)
         elif args[0] == 'fix_nameless_files':
             self.fix_nameless_files()
+        elif args[0] == 'reset_generate_georeferences':
+            self.reset_generate_georeferences(body_id)
 
     def remove(self, body_id):
         self.body_config = self.main.get_body_config(body_id)
@@ -497,6 +499,25 @@ class Maintenance():
             object_json
         )
         self.main.db_raw.street_number.update_many(
+            query,
+            object_json
+        )
+
+    def reset_generate_georeferences(self, body_uid):
+        query = {}
+        if body_uid != 'all':
+            body = Body.objects(uid=body_uid).first()
+            if not body:
+                return
+            query['body'] = body.id
+
+        object_json = {
+            '$unset': {
+                'georeferencesGenerated': '',
+                'georeferencesStatus': ''
+            }
+        }
+        self.main.db_raw.file.update_many(
             query,
             object_json
         )
