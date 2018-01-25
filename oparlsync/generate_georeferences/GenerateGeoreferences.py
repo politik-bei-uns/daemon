@@ -157,12 +157,14 @@ class GenerateGeoreferences():
 
     def create_location(self, type, streetName, streetNumber, postalCode, subLocality, locality, geojson, streetObj=None, streetNumberObj=None):
         base_query = {
+            'region': self.body.region,
             'streetAddress': streetName + ('' if type == 'street' else ' ' + streetNumber)
         }
 
         query = base_query.copy()
 
         query['locationType'] = type
+        """
         if postalCode:
             if type == 'street':
                 if len(postalCode):
@@ -181,7 +183,7 @@ class GenerateGeoreferences():
                     query['locality'] = locality[0]
             else:
                 query['locality'] = locality
-
+        """
         location = Location.objects(**base_query).no_cache().timeout(False).first()
         if location:
             if location.body:
