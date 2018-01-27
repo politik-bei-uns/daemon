@@ -32,9 +32,10 @@ class GenerateThumbnails():
     def run(self, body_id, *args):
         if not self.main.config.ENABLE_PROCESSING:
             return
-        self.body_config = self.main.get_body_config(body_id)
-        body_id = Body.objects(originalId=self.body_config['url']).no_cache().first().id
-        files = File.objects(thumbnailStatus__exists=False, body=body_id).no_cache().timeout(False).all()
+        self.body = Body.objects(uid=body_id).no_cache().first()
+        if not self.body:
+            return
+        files = File.objects(thumbnailStatus__exists=False, body=self.body.id).no_cache().timeout(False).all()
         for file in files:
             self.main.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()
@@ -65,7 +66,7 @@ class GenerateThumbnails():
                 file_path_old = file_path
                 file_path = file_path + '-old'
                 cmd = ('%s --to=PDF -o %s %s' % (self.main.config.ABIWORD_COMMAND, file_path, file_path_old))
-                self.main.execute(cmd, body_id)
+                self.main.execute(cmd, self.body.id)
 
             # create folders
             max_folder = os.path.join(self.main.config.TMP_THUMBNAIL_DIR, str(file.id) + '-max')
@@ -84,7 +85,7 @@ class GenerateThumbnails():
             max_path = max_folder + os.sep + '%d.png'
             cmd = '%s -dQUIET -dSAFER -dBATCH -dNOPAUSE -sDisplayHandle=0 -sDEVICE=png16m -r100 -dTextAlphaBits=4 -sOutputFile=%s -f %s' % (
             self.main.config.GHOSTSCRIPT_COMMAND, max_path, file_path)
-            self.main.execute(cmd, body_id)
+            self.main.execute(cmd, self.body.id)
 
             # generate thumbnails based on max images
             for max_file in os.listdir(max_folder):
@@ -111,7 +112,7 @@ class GenerateThumbnails():
                     resizedim.save(out_path, subsampling=0, quality=80)
                     # optimize image
                     cmd = '%s --preserve-perms %s' % (self.main.config.JPEGOPTIM_PATH, out_path)
-                    self.main.execute(cmd, body_id)
+                    self.main.execute(cmd, self.body.id)
                     # create mongodb object and append it to file
                     file.thumbnail[str(num)]['pages'][str(size)] = {
                         'width': width,
@@ -124,13 +125,13 @@ class GenerateThumbnails():
                     try:
                         self.main.s3.fput_object(
                             self.main.config.S3_BUCKET,
-                            "file-thumbnails/%s/%s/%s/%s" % (body_id, str(file.id), str(size), out_file),
+                            "file-thumbnails/%s/%s/%s/%s" % (self.body.id, str(file.id), str(size), out_file),
                             os.path.join(out_folder, str(size), out_file),
                             'image/jpeg'
                         )
                     except ResponseError as err:
                         self.main.datalog.error(
-                            'Critical error saving file from File %s from Body %s' % (file.id, body_id))
+                            'Critical error saving file from File %s from Body %s' % (file.id, self.body.id))
             # save in mongodb
             file.thumbnailStatus = 'successful'
             file.thumbnailsGenerated = datetime.datetime.now()
