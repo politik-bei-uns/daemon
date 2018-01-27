@@ -33,7 +33,8 @@ class OParlDocument(object):
                         if getattr(self._fields[field].field, deref):
                             for sub_object in getattr(self, field):
                                 result[field].append(
-                                    sub_object.to_dict(deref=deref, format_datetime=format_datetime, delete=delete))
+                                    sub_object.to_dict(deref=deref, format_datetime=format_datetime, delete=delete,
+                                                       clean_none=clean_none))
                         else:
                             for sub_object in getattr(self, field):
                                 result[field].append(str(sub_object.id))
@@ -47,7 +48,7 @@ class OParlDocument(object):
                     if deref:
                         if getattr(self._fields[field], deref):
                             result[field] = getattr(self, field).to_dict(deref=deref, format_datetime=format_datetime,
-                                                                         delete=delete)
+                                                                         delete=delete, clean_none=clean_none)
                         else:
                             result[field] = str(getattr(self, field).id)
                     else:
