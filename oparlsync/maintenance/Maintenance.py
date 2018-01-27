@@ -285,7 +285,7 @@ class Maintenance():
 
             region_dict['geojson'] = json.dumps(region_dict['geojson'])
             del region_dict['bounds']
-
+            region_dict['legacy']= bool(region.legacy)
 
 
             new_doc = self.main.es.index(
