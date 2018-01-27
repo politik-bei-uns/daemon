@@ -200,7 +200,7 @@ class ElasticsearchImport():
             region = region.parent
 
         for location in Location.objects(body=self.body).no_cache():
-            location_dict = location.to_dict(deref='deref_paper_location', format_datetime=True, delete='delete_paper_location')
+            location_dict = location.to_dict(deref='deref_paper_location', format_datetime=True, delete='delete_paper_location', clean_none=True)
             location_dict['region'] = regions
 
             if 'geojson' in location_dict:
