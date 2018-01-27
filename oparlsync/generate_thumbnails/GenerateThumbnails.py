@@ -62,6 +62,7 @@ class GenerateThumbnails():
                 os.unlink(file_path)
                 continue
 
+            file_path_old = False
             if file.mimeType == 'application/msword':
                 file_path_old = file_path
                 file_path = file_path + '-old'
@@ -139,7 +140,15 @@ class GenerateThumbnails():
             file.pages = pages
             file.save()
             # tidy up
-            os.unlink(file_path)
+            try:
+                os.unlink(file_path)
+            except FileNotFoundError:
+                pass
+            try:
+                if file_path_old:
+                    os.unlink(file_path)
+            except FileNotFoundError:
+                pass
             shutil.rmtree(max_folder)
             shutil.rmtree(out_folder)
 
