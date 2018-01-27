@@ -50,6 +50,10 @@ class ElasticsearchImport():
                 "analyzer": "autocomplete_import_analyzer",
                 "search_analyzer": "autocomplete_search_analyzer"
             }
+            mapping['properties']['legacy'] = {
+                'type': 'boolean'
+            }
+
 
             self.main.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
@@ -90,6 +94,8 @@ class ElasticsearchImport():
             if 'subLocality' in street_dict:
                 if street_dict['subLocality']:
                     street_dict['autocomplete'] += ' (' + street_dict['subLocality'][0] + ')'
+
+            street_dict['legacy'] = bool(street.region.legacy)
 
             new_doc = self.main.es.index(
                 index=index_name,
@@ -173,6 +179,9 @@ class ElasticsearchImport():
             mapping['properties']['region'] = {
                 'type': 'text'
             }
+            mapping['properties']['legacy'] = {
+                'type': 'boolean'
+            }
 
             self.main.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
@@ -226,6 +235,8 @@ class ElasticsearchImport():
                 location_dict['geosearch'] = location_dict['geojson']['geometry']
                 location_dict['geotype'] = location_dict['geojson']['geometry']['type']
                 location_dict['geojson'] = json.dumps(location_dict['geojson'])
+
+            location_dict['legacy'] = bool(location.region.legacy)
 
             new_doc = self.main.es.index(
                 index=index_name,

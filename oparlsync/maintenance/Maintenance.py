@@ -213,6 +213,7 @@ class Maintenance():
                 'set__rgs': region_data['rgs'],
                 'set__bounds': bounds,
                 'set__geojson': geojson,
+                'set__legacy': 'legacy' in region_data,
                 'upsert': True
             }
             if 'legacy' in region_data:
