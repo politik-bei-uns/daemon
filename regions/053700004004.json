@@ -1,6 +1,6 @@
 {
   "rgs": "053700004004",
-  "active": false,
+  "active": true,
   "osm_relation": "67333",
   "osm_level": 8,
   "geofabrik_package": "/europe/germany/nordrhein-westfalen/koeln-regbez-latest.osm.bz2",
