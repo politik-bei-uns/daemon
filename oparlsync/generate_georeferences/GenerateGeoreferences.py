@@ -29,20 +29,21 @@ class GenerateGeoreferences():
         self.body_config = self.main.get_body_config(body_id)
         if not self.body_config:
             return
-        if 'geocoding' in self.body_config:
-            if self.body_config['geocoding'] == False:
-                return
         self.body = Body.objects(uid=body_id).no_cache().first()
         if not self.body:
             return
-
         if not self.body.region:
             return
+
+        self.assign_regions()
+
+        if 'geocoding' in self.body_config:
+            if self.body_config['geocoding'] == False:
+                return
         # TODO: find a way to geocode bodies with multible sub-regions
         if self.body.region.level_max != 10:
             return
 
-        self.assign_regions()
         self.assign_locations_to_street_numbers()
         self.check_for_streets()
 
