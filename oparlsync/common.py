@@ -37,6 +37,7 @@ from .street_import import StreetImport
 from .generate_georeferences import GenerateGeoreferences
 from .generate_backrefs import GenerateBackrefs
 from .elasticsearch_import import ElasticsearchImport
+from .generate_sitemap import GenerateSitemap
 from .misc import Misc
 
 
@@ -64,7 +65,7 @@ class Common():
                 'generate_backrefs': ['generate_fulltext'],
                 'generate_fulltext': ['generate_georeferences'],
                 'generate_georeferences': ['elasticsearch_import'],
-                'elasticsearch_import': ['misc']
+                'elasticsearch_import': ['misc', 'generate_sitemap']
             }
         else:
             self.next_job = {
@@ -128,6 +129,7 @@ class Common():
             'generate_georeferences': GenerateGeoreferences,
             'generate_backrefs': GenerateBackrefs,
             'elasticsearch_import': ElasticsearchImport,
+            'generate_sitemap': GenerateSitemap,
             'misc': Misc
         }
 

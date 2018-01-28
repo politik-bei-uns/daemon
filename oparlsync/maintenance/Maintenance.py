@@ -75,6 +75,8 @@ class Maintenance():
             self.fix_nameless_files()
         elif args[0] == 'reset_generate_georeferences':
             self.reset_generate_georeferences(body_id)
+        elif args[0] == 'sitemap_master':
+            self.sitemap_master()
 
     def remove(self, body_id):
         self.body_config = self.main.get_body_config(body_id)
@@ -586,5 +588,14 @@ class Maintenance():
                     content_type=file.mimeType,
                     metadata=metadata
                 )
+
+    def sitemap_master(self):
+        meta_sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, 'sitemap.xml')
+        with open(meta_sitemap_path, 'w') as f:
+            f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+            f.write("<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+            for body in Body.objects.all():
+                f.write("  <sitemap><loc>%s/static/sitemap/%s.xml</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
+            f.write("</sitemapindex>\n")
 
 
