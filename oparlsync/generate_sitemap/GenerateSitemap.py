@@ -44,9 +44,9 @@ class GenerateSitemap():
                 os.unlink(file_path)
 
     def generate_paper_sitemap(self):
-        document_count = Paper.objects.count()
+        document_count = Paper.objects(body=self.body.id).count()
         for sitemap_number in range(0, int(math.ceil(document_count / 50000))):
-            papers = Paper.objects()[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
+            papers = Paper.objects(body=self.body.id)[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
             sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, '%s-paper-%s.xml' % (self.body.id, sitemap_number))
             with open(sitemap_path, 'w') as f:
                 f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -60,9 +60,9 @@ class GenerateSitemap():
 
 
     def generate_file_sitemap(self):
-        document_count = Paper.objects.count()
+        document_count = File.objects(body=self.body.id).count()
         for sitemap_number in range(0, int(math.ceil(document_count / 50000))):
-            files = File.objects()[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
+            files = File.objects(body=self.body.id)[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
             sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, '%s-file-%s.xml' % (self.body.id, sitemap_number))
             with open(sitemap_path, 'w') as f:
                 f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -75,9 +75,9 @@ class GenerateSitemap():
             sitemap_number += 1
 
     def generate_meeting_sitemap(self):
-        document_count = Paper.objects.count()
+        document_count = Meeting.objects(body=self.body.id).count()
         for sitemap_number in range(0, int(math.ceil(document_count / 50000))):
-            meetings = Meeting.objects()[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
+            meetings = Meeting.objects(body=self.body.id)[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
             sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, '%s-meeting-%s.xml' % (self.body.id, sitemap_number))
             with open(sitemap_path, 'w') as f:
                 f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
