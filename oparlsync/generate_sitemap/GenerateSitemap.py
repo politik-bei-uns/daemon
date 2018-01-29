@@ -34,7 +34,7 @@ class GenerateSitemap():
         self.generate_paper_sitemap()
         self.generate_meeting_sitemap()
         self.generate_file_sitemap()
-        self.generate_meta_sitemap()
+        #self.generate_meta_sitemap()
         # Create meta-sitemap
 
     def tidy_up(self):
