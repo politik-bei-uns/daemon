@@ -598,6 +598,8 @@ class Maintenance():
                 f.write("  <sitemap><loc>%s/static/sitemap/%s-meeting-0.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
                 f.write("  <sitemap><loc>%s/static/sitemap/%s-paper-0.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
                 f.write("  <sitemap><loc>%s/static/sitemap/%s-file-0.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
+                if File.objects(body=body.id, deleted__not=True).count() > 50000:
+                    f.write("  <sitemap><loc>%s/static/sitemap/%s-file-1.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
             f.write("</sitemapindex>\n")
 
 

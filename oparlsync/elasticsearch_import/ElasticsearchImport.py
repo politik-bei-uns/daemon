@@ -152,7 +152,7 @@ class ElasticsearchImport():
 
         for paper in Paper.objects(body=self.body).no_cache():
             if paper.deleted:
-                new_doc = self.main.es.delete(
+                self.main.es.delete(
                     index=index_name,
                     id=str(paper.id),
                     doc_type='paper',
@@ -218,10 +218,10 @@ class ElasticsearchImport():
 
         for location in Location.objects(body=self.body).no_cache():
             if location.deleted:
-                new_doc = self.main.es.delete(
+                self.main.es.delete(
                     index=index_name,
                     id=str(location.id),
-                    doc_type='paper-location',
+                    doc_type='location',
                     ignore=[400, 404]
                 )
                 continue
