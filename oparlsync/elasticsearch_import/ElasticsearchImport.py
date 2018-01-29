@@ -151,6 +151,14 @@ class ElasticsearchImport():
             region = region.parent
 
         for paper in Paper.objects(body=self.body).no_cache():
+            if paper.deleted:
+                new_doc = self.main.es.delete(
+                    index=index_name,
+                    id=str(paper.id),
+                    doc_type='paper',
+                    ignore=[400, 404]
+                )
+                continue
             paper_dict = paper.to_dict(deref='deref_paper', format_datetime=True, delete='delete_paper', clean_none=True)
             paper_dict['body_name'] = paper.body.name
             paper_dict['region'] = regions
@@ -209,6 +217,14 @@ class ElasticsearchImport():
             region = region.parent
 
         for location in Location.objects(body=self.body).no_cache():
+            if location.deleted:
+                new_doc = self.main.es.delete(
+                    index=index_name,
+                    id=str(location.id),
+                    doc_type='paper-location',
+                    ignore=[400, 404]
+                )
+                continue
             location_dict = location.to_dict(deref='deref_paper_location', format_datetime=True, delete='delete_paper_location', clean_none=True)
             location_dict['region'] = regions
 
