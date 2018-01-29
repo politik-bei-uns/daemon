@@ -319,6 +319,10 @@ class OparlDownload():
             except ValidationError as err:
                 self.main.datalog.warn(
                     '%s %s from Body %s failed validation.' % (object.__name__, object_raw['id'], self.body_uid))
+        # fix modified
+        if object.created and object.modified:
+            if object.created > object.modified:
+                object.modified = object.created
 
         # Etwas umständlicher Weg über pymongo
         if self.main.config.USE_MIRROR:
