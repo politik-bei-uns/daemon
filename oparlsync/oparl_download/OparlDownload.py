@@ -320,9 +320,9 @@ class OparlDownload():
                 self.main.datalog.warn(
                     '%s %s from Body %s failed validation.' % (object.__name__, object_raw['id'], self.body_uid))
         # fix modified
-        if object.created and object.modified:
-            if object.created > object.modified:
-                object.modified = object.created
+        if object_instance.created and object_instance.modified:
+            if object_instance.created > object_instance.modified:
+                object_instance.modified = object_instance.created
 
         # Etwas umständlicher Weg über pymongo
         if self.main.config.USE_MIRROR:
