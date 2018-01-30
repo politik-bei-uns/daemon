@@ -6,5 +6,6 @@
   "active": true,
   "osm_relation": "88547",
   "geofabrik_package": "/europe/germany/nordrhein-westfalen/duesseldorf-regbez-latest.osm.bz2",
-  "name": "Willich"
+  "name": "Willich",
+  "wait_time": 2
 }
