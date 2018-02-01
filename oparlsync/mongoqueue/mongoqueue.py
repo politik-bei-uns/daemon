@@ -49,6 +49,12 @@ class MongoQueue(object):
         """
         return self.collection.drop()
 
+    def clear_safe(self):
+        return self.collection.remove({
+            "locked_by": None,
+            "locked_at": None
+        })
+
     def size(self):
         """Total size of the queue
         """

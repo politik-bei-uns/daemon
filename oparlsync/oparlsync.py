@@ -61,7 +61,7 @@ class OparlSync():
             self.common.queue_network.put(payload)
 
     def queue_clear(self):
-        self.common.queue_network.clear()
+        self.common.queue_network.clear_safe()
 
     def queue_list(self):
         jobs = self.common.queue_network.next()
