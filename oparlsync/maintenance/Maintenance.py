@@ -145,7 +145,7 @@ class Maintenance():
             parent_region.save()
 
         regions = []
-        for region_raw in Region.objects(parent__exists=False).all():
+        for region_raw in Region.objects(parent__exists=False).order_by('name').all():
             regions.append({
                 'id': str(region_raw.id),
                 'name': region_raw.name,
@@ -227,7 +227,7 @@ class Maintenance():
 
     def region_get_children(self, region_id):
         regions = []
-        for region_raw in Region.objects(parent=region_id).all():
+        for region_raw in Region.objects(parent=region_id).order_by('name').all():
             region = {
                 'id': str(region_raw.id),
                 'name': region_raw.name,
