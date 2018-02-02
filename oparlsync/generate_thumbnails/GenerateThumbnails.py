@@ -18,6 +18,7 @@ import subprocess
 from PIL import Image
 from ..models import Body, File
 from minio.error import ResponseError, NoSuchKey
+from pymongo.errors import CursorNotFound
 
 
 class GenerateThumbnails():
@@ -35,8 +36,18 @@ class GenerateThumbnails():
         self.body = Body.objects(uid=body_id).no_cache().first()
         if not self.body:
             return
-        files = File.objects(thumbnailStatus__exists=False, body=self.body.id).no_cache().timeout(False).all()
-        for file in files:
+        files = File.objects(thumbnailStatus__exists=False, body=self.body.id).no_cache().all()
+        while True:
+            try:
+                file = next(files)
+            except CursorNotFound:
+                files = File.objects(thumbnailStatus__exists=False, body=self.body.id).no_cache().all()
+                file = next(files)
+                continue
+            except StopIteration:
+                break
+            if not file:
+                break
             self.main.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()
             file.thumbnailGenerated = datetime.datetime.now()
