@@ -227,6 +227,9 @@ class OparlDownload():
             object_list = self.get_url_json(list_url, is_list=True)
         else:
             if self.last_update and (self.body_config['force_full_sync'] == 0 or self.main.config.USE_MIRROR):
+                last_update_tmp = self.last_update
+                if self.main.config.USE_MIRROR:
+                    last_update_tmp = last_update_tmp - datetime.timedelta(weeks=1)
                 object_list = self.get_url_json(
                     getattr(self, '%s_list_url' % object._object_db_name) + '?modified_since=%s' % self.last_update.isoformat(),
                     is_list=True
