@@ -118,6 +118,10 @@ class Common():
         datalog_stream_handler.setLevel(logging.DEBUG)
         self.datalog.addHandler(datalog_stream_handler)
 
+    def release_log(self):
+        for datalog_handler in self.datalog.handlers:
+            self.datalog.removeHandler(datalog_handler)
+
     def init_modules(self):
         # Unterstützte Module
         self.modules = {
