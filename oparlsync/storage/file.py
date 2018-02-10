@@ -71,6 +71,7 @@ class File(Document, OParlDocument):
     georeferencesStatus = StringField(vendor_attribute=True, delete_paper=True, delete_paper_location=True)
     thumbnail = DictField(vendor_attribute=True, delete_paper=True, delete_paper_location=True)
     pages = IntField(vendor_attribute=True, delete_paper=True, delete_paper_location=True)
+    keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated'), vendor_attribute=True)
 
     # Felder zur Verarbeitung
     _object_db_name = 'file'
