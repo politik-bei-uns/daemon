@@ -1,5 +1,6 @@
 # Python
 config.py
+config.*.py
 *.py[cod]
 
 # Mac OS-X
