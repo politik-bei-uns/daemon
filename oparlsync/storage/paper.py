@@ -28,9 +28,9 @@ class Paper(Document, OParlDocument):
     mainFile = ReferenceField('File', dbref=False, deref_paper_location=True, deref_paper=True)
     auxiliaryFile = ListField(ReferenceField('File', dbref=False, deref_paper_location=True, deref_paper=True), default=[])
     location = ListField(ReferenceField('Location', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    originatorPerson = ListField(ReferenceField('Person', dbref=False, deref_paper_location=True, deref_paper=False), default=[])
-    underDirectionOf = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=True, deref_paper=False), default=[])
-    originatorOrganization = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=True, deref_paper=False), default=[])
+    originatorPerson = ListField(ReferenceField('Person', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
+    underDirectionOf = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
+    originatorOrganization = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
     consultation = ListField(ReferenceField('Consultation', dbref=False, deref_paper_location=True, deref_paper=False), default=[])
     license = StringField()
     keyword = ListField(StringField(fulltext=True), default=[])
@@ -45,8 +45,8 @@ class Paper(Document, OParlDocument):
     mirrorId = StringField(vendor_attribute=True)
     georeferenceStatus = StringField(vendor_attribute=True)
     georeferenceGenerated = DateTimeField(datetime_format='datetime', vendor_attribute=True)
-    keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated'), vendor_attribute=True)
-    locationOrigin = ListField(ReferenceField('LocationOrigin'), vendor_attribute=True)
+    keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated', deref_paper_location=False, deref_paper=False), vendor_attribute=True)
+    locationOrigin = ListField(ReferenceField('LocationOrigin', deref_paper_location=False, deref_paper=False), vendor_attribute=True)
 
     # Felder zur Verarbeitung
     _object_db_name = 'paper'

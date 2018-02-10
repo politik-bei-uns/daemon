@@ -359,7 +359,7 @@ class OparlDownload():
             if type(object_instance._fields[field_key]).__name__ == 'DateTimeField':
                 object_json[field_key] = getattr(object_instance, field_key)
 
-        # BodyID related Fixes
+        # Body ID related Fixes
         if object == Location:
             object_json['body'] = [self.body_uid]
             if 'geojson' in object_json:

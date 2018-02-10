@@ -13,7 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import re
 import geojson
 import datetime
-from ..models import Street, Body, File, Location, StreetNumber
+from ..models import Street, Body, File, Location, StreetNumber, LocationOrigin, Paper
 
 
 class GenerateGeoreferences():
@@ -118,12 +118,24 @@ class GenerateGeoreferences():
                     ))
                 for paper in file.paper:
                     for location in locations:
+                        save_paper = False
                         if location not in paper.location:
                             paper.location.append(location)
-                            paper.save()
+                            save_paper = True
                         if paper not in location.paper:
                             location.paper.append(paper)
                             location.save()
+                        if not LocationOrigin.objects(paper=paper.id, location=location.id, origin='auto').no_cache().count():
+                            location_origin = LocationOrigin()
+                            location_origin.location = location.id
+                            location_origin.paper = paper.id
+                            location_origin.origin = 'ris'
+                            location_origin.save()
+                            if location_origin.id not in paper.locationOrigin:
+                                paper.locationOrigin.append(location_origin.id)
+                                save_paper = True
+                        if save_paper:
+                            paper.save()
 
                 file.georeferencesStatus = 'generated'
                 file.georeferencesGenerated = datetime.datetime.now()

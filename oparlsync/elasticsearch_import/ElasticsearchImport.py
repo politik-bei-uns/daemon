@@ -75,9 +75,20 @@ class ElasticsearchImport():
 
         for street in Street.objects(region=self.body.region).no_cache():
             street_dict = street.to_dict(deref='deref_street', format_datetime=True, delete='delete_street', clean_none=True)
+
+            if 'geojson' in street_dict:
+                if street_dict['geojson']:
+                    if 'geometry' in street_dict['geojson']:
+                        street_dict['geosearch'] = street_dict['geojson']['geometry']
+                    else:
+                        del street_dict['geojson']
+                else:
+                    del street_dict['geojson']
             if 'geojson' in street_dict:
                 street_dict['geosearch'] = street_dict['geojson']['geometry']
+                street_dict['geotype'] = street_dict['geojson']['geometry']['type']
                 street_dict['geojson'] = json.dumps(street_dict['geojson'])
+
             street_dict['autocomplete'] = ''
             if 'streetName' in street_dict:
                 if street_dict['streetName']:
