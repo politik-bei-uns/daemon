@@ -34,6 +34,7 @@ class File(Document, OParlDocument):
     date = DateTimeField(datetime_format='date')
     size = DecimalField()
     sha1Checksum = StringField()
+    sha512Checksum = StringField()
     text = StringField(fulltext=True)
     accessUrl = StringField()
     downloadUrl = StringField()

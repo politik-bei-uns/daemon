@@ -25,3 +25,4 @@ from .street import Street
 from .street_number import StreetNumber
 from .region import Region
 from .option import Option
+from .location_origin import LocationOrigin
