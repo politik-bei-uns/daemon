@@ -468,13 +468,15 @@ class Maintenance():
 
     def delete_all_locations(self, body):
         Location.objects.delete()
+        LocationOrigin.objects.delete()
 
         query = {}
         if body != 'all':
             query['uid'] = body
         object_json = {
             '$unset': {
-                'location': ''
+                'location': '',
+                'locationOrigin': ''
             }
         }
         self.main.db_raw.body.update_many(
