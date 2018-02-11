@@ -129,7 +129,7 @@ class GenerateGeoreferences():
                             location_origin = LocationOrigin()
                             location_origin.location = location.id
                             location_origin.paper = paper.id
-                            location_origin.origin = 'ris'
+                            location_origin.origin = 'auto'
                             location_origin.save()
                             if location_origin.id not in paper.locationOrigin:
                                 paper.locationOrigin.append(location_origin.id)
