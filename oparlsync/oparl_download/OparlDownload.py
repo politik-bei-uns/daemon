@@ -496,7 +496,7 @@ class OparlDownload():
                 self.download_not_required += 1
 
         # If we have a Paper with a Location, we need to mark this as official=ris relation if processing is enabled
-        if object == Paper and 'location' in object_json['$set'] and self.main.config['ENABLE_PROCESSING']:
+        if object == Paper and 'location' in object_json['$set'] and self.main.config.ENABLE_PROCESSING:
             for location_obj_id in object_json['$set']['location']:
                 if not LocationOrigin.objects(paper=ObjectId(result['_id']), location=location_obj_id, origin='ris').no_cache().count():
                     location_origin = LocationOrigin()
