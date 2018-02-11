@@ -213,6 +213,8 @@ class GenerateGeoreferences():
             setattr(location, key, value)
         location.modified = datetime.datetime.now()
         location.geojson = geojson
+        if not location.locality:
+            location.locality = self.body.region.name
         if type == 'street':
             if streetObj:
                 location.street = streetObj
