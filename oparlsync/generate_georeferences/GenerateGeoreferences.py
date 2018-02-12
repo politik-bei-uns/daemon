@@ -61,19 +61,20 @@ class GenerateGeoreferences():
                 continue
             if 'properties' not in location.geojson:
                 location.geojson['properties'] = {}
-            if location.description:
-                location.geojson['properties']['name'] = location.description
-            else:
-                location.geojson['properties']['name'] = ''
-                if location.streetAddress:
-                    location.geojson['properties']['name'] += location.streetAddress
-                if location.streetAddress and (location.postalCode or location.locality):
-                    location.geojson['properties']['name'] += ', '
-                if location.postalCode:
-                    location.geojson['properties']['name'] += location.postalCode + ' '
-                if location.locality:
-                    location.geojson['properties']['name'] += location.locality
-            location.save()
+            if 'name' not in location.geojson['properties']:
+                if location.description:
+                    location.geojson['properties']['name'] = location.description
+                else:
+                    location.geojson['properties']['name'] = ''
+                    if location.streetAddress:
+                        location.geojson['properties']['name'] += location.streetAddress
+                    if location.streetAddress and (location.postalCode or location.locality):
+                        location.geojson['properties']['name'] += ', '
+                    if location.postalCode:
+                        location.geojson['properties']['name'] += location.postalCode + ' '
+                    if location.locality:
+                        location.geojson['properties']['name'] += location.locality
+                location.save()
 
     def assign_locations_to_street_numbers(self):
         for location in Location.objects(body=self.body).timeout(False).no_cache().all():
