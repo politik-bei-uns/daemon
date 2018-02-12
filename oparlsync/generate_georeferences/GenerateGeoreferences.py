@@ -36,7 +36,7 @@ class GenerateGeoreferences():
             return
 
         self.assign_regions()
-
+        self.fix_name_in_geojson()
         if 'geocoding' in self.body_config:
             if self.body_config['geocoding'] == False:
                 return
@@ -53,6 +53,26 @@ class GenerateGeoreferences():
     def assign_regions(self):
         for location in Location.objects(body=self.body, region__exists=False).timeout(False).no_cache().all():
             location.region = self.body.region
+            location.save()
+
+    def fix_name_in_geojson(self):
+        for location in Location.objects(body=self.body).timeout(False).no_cache().all():
+            if not location.geojson:
+                continue
+            if 'properties' not in location.geojson:
+                location.geojson['properties'] = {}
+            if location.description:
+                location.geojson['properties']['name'] = location.description
+            else:
+                location.geojson['properties']['name'] = ''
+                if location.streetAddress:
+                    location.geojson['properties']['name'] += location.streetAddress
+                if location.streetAddress and (location.postalCode or location.locality):
+                    location.geojson['properties']['name'] += ', '
+                if location.postalCode:
+                    location.geojson['properties']['name'] += location.postalCode + ' '
+                if location.locality:
+                    location.geojson['properties']['name'] += location.locality
             location.save()
 
     def assign_locations_to_street_numbers(self):
