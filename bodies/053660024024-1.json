@@ -1,10 +1,10 @@
 {
-  "id": "053660024024-1",
-  "rgs": "053660024024",
-  "url": "https://sdnetrim.kdvz-frechen.de/rim4550/webservice/oparl/v1/body/1",
+  "id": "053660040040-1",
+  "rgs": "053660040040",
+  "url": "https://sdnetrim.kdvz-frechen.de/rim4510/webservice/oparl/v1/body/1",
   "force_full_sync": 1,
   "active": true,
-  "osm_relation": "158158",
+  "osm_relation": "158134",
   "geofabrik_package": "/europe/germany/nordrhein-westfalen/koeln-regbez-latest.osm.bz2",
-  "name": "Kall"
+  "name": "Weilerswist"
 }
