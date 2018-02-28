@@ -108,7 +108,7 @@ class Common():
         datalog_file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s ')
         )
-        datalog_file_handler.setLevel(logging.INFO)
+        datalog_file_handler.setLevel(logging.DEBUG)
         self.datalog.addHandler(datalog_file_handler)
 
         datalog_stream_handler = logging.StreamHandler()
