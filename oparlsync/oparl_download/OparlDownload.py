@@ -298,7 +298,7 @@ class OparlDownload():
                                             self.mongodb_request_cached += 1
                                             continue
                                         dbref_data[key].append(ObjectId(self.save_object(valid_object, {'id': single}, False)['_id']))
-                    # List of Non-Relatipn
+                    # List of Non-Relation
                     else:
                         self.save_document_values(object_instance, key, value)
                 # Single Relation

@@ -52,6 +52,7 @@ class Worker(Process):
                         self.common.add_next_to_queue(job.payload['module'], job.payload['body_id'])
                         job.complete()
                         self.common.release_log()
+                        self.common.close_connections()
                         setproctitle('%s worker: idle ' % (self.common.config.PROJECT_NAME))
             if self.tick >= 100000:
                 self.tick = 0

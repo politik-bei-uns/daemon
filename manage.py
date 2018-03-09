@@ -20,56 +20,58 @@ args = sys.argv
 global_action = ['daemon', 'single', 'queue']
 
 if len(args) < 2:
-  sys.exit('usage: python manage.py %s' % '|'.join(global_action))
+    sys.exit('usage: python manage.py %s' % '|'.join(global_action))
 
 if args[1] not in global_action:
-  sys.exit('fatal: action should be one of %s' % '|'.join(global_action))
+    sys.exit('fatal: action should be one of %s' % '|'.join(global_action))
 
-daemon_action = ['start', 'stop', 'status']
+daemon_action = ['start', 'start-foreground', 'stop', 'status']
 
 if args[1] == 'daemon':
-  if len(args) < 3:
-    sys.exit('usage: puthon manage.py queue %s' % '|'.join(daemon_action))
-  
-  if args[2] not in daemon_action:
-    sys.exit('fatal: action should be one of %s' % '|'.join(daemon_action))
-  
-  if args[2] == 'start':
-    oparlsync.daemon_start()
-  
-  if args[2] == 'stop':
-    oparlsync.daemon_stop()
-    
-  if args[2] == 'status':
-    oparlsync.daemon_status()
+    if len(args) < 3:
+        sys.exit('usage: puthon manage.py queue %s' % '|'.join(daemon_action))
+
+    if args[2] not in daemon_action:
+        sys.exit('fatal: action should be one of %s' % '|'.join(daemon_action))
+
+    if args[2] == 'start':
+        oparlsync.daemon_start()
+
+    if args[2] == 'start-foreground':
+        oparlsync.daemon_start(detach_process=False)
+
+    if args[2] == 'stop':
+        oparlsync.daemon_stop()
+
+    if args[2] == 'status':
+        oparlsync.daemon_status()
 
 queue_action = ['add', 'clear', 'list', 'stats']
 
 if args[1] == 'queue':
-  if len(args) < 3:
-    sys.exit('usage: puthon manage.py queue %s' % '|'.join(queue_action))
-  
-  if args[2] not in queue_action:
-    sys.exit('fatal: action should be one of %s' % '|'.join(queue_action))
-  
-  if args[2] == 'add':
-    if len(args) < 5:
-      sys.exit('usage: python manage.py queue add $module $body')
-    
-    oparlsync.queue_add(args[3], args[4])
-  
-  if args[2] == 'clear':
-    oparlsync.queue_clear()
-  
-  if args[2] == 'list':
-    oparlsync.queue_details()
-  
-  if args[2] == 'stats':
-    oparlsync.queue_stats()
+    if len(args) < 3:
+        sys.exit('usage: puthon manage.py queue %s' % '|'.join(queue_action))
+
+    if args[2] not in queue_action:
+        sys.exit('fatal: action should be one of %s' % '|'.join(queue_action))
+
+    if args[2] == 'add':
+        if len(args) < 5:
+            sys.exit('usage: python manage.py queue add $module $body')
+
+        oparlsync.queue_add(args[3], args[4])
+
+    if args[2] == 'clear':
+        oparlsync.queue_clear()
+
+    if args[2] == 'list':
+        oparlsync.queue_details()
+
+    if args[2] == 'stats':
+        oparlsync.queue_stats()
 
 if args[1] == 'single':
-  if len(args) < 4:
-    sys.exit('usage: python manage.py single $module $body $mongoid|$oparlid(optional)')
-  
-  oparlsync.single(args[2], args[3], *args[4:])
+    if len(args) < 4:
+        sys.exit('usage: python manage.py single $module $body $mongoid|$oparlid(optional)')
 
+    oparlsync.single(args[2], args[3], *args[4:])

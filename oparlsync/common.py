@@ -25,6 +25,7 @@ from minio import Minio
 from minio.policy import Policy
 from minio.error import (ResponseError, BucketAlreadyOwnedByYou, BucketAlreadyExists, NoSuchKey)
 from urllib3.exceptions import MaxRetryError
+from mongoengine.connection import disconnect as mongoengine_disconnect
 
 from .config import get_config
 from .mongoqueue import MongoQueue
@@ -165,14 +166,21 @@ class Common():
 
     def init_db(self):
         mongoengine.connect(
-            db=self.config.MONGO_DB_NAME
+            db=self.config.MONGO_DB_NAME,
+            host=self.config.MONGO_DB_HOST,
+            port=self.config.MONGO_DB_PORT,
+            connect=False
         )
         try:
-            self.db_raw = pymongo.MongoClient()
-            self.db_raw.server_info()
+            self.db_raw_client = pymongo.MongoClient(
+                host=self.config.MONGO_DB_HOST,
+                port=self.config.MONGO_DB_PORT,
+                connect=False
+            )
+            self.db_raw_client.server_info()
         except pymongo.errors.ServerSelectionTimeoutError as err:
             sys.exit('fatal: connection to MongoDB can\'t be established.')
-        self.db_raw = self.db_raw[self.config.MONGO_DB_NAME]
+        self.db_raw = self.db_raw_client[self.config.MONGO_DB_NAME]
         #
         self.s3 = Minio(self.config.S3_ENDPOINT,
                         access_key=self.config.S3_ACCESS_KEY,
@@ -197,6 +205,10 @@ class Common():
             self.es = Elasticsearch(
                 self.config.ES_HOSTS
             )
+
+    def close_connections(self):
+        self.db_raw_client.close()
+        mongoengine_disconnect()
 
     def send_mail(self, receivers=None, subject='', body=''):
         smtp = smtplib.SMTP(

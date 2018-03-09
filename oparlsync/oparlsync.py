@@ -114,7 +114,7 @@ class OparlSync():
         else:
             print('Daemon running with pid %s.' % status)
 
-    def daemon_start(self):
+    def daemon_start(self, detach_process=True):
         if self.get_daemon_status():
             sys.exit('Daemon already running.')
         #stdout = open(os.path.join(self.common.config.LOG_DIR, 'output.log'), 'w+')
@@ -123,12 +123,14 @@ class OparlSync():
         daemon_context = daemon.DaemonContext(
             working_directory=self.common.config.BASE_DIR,
             umask=0o002,
-            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid'))#,
+            pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.common.config.TMP_DIR, 'app.pid')),
+            detach_process=detach_process#,
             #stdout=stdout,
             #stderr=stderr
         )
 
         daemon_context.signal_map = {
+            signal.SIGINT: self.program_cleanup,
             signal.SIGTERM: self.program_cleanup,
             signal.SIGHUP: 'terminate',
             signal.SIGUSR1: None
