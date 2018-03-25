@@ -11,14 +11,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 """
 
 from ..models import *
+from ..base_task import BaseTask
 
 
-class GenerateBackrefs():
-    def __init__(self, main):
-        self.main = main
+class GenerateBackrefs(BaseTask):
+    name = 'GenerateBackrefs'
+    services = [
+        'mongodb'
+    ]
 
-    def __del__(self):
-        pass
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
 
     def run(self, body_id, *args):
         self.body = Body.objects(uid=body_id).no_cache().first()
@@ -52,7 +56,7 @@ class GenerateBackrefs():
         self.backref_item(Meeting, 'location', 'meeting')
         self.backref_list(Paper, 'location', 'paper')
 
-        self.main.datalog.info('Created %s backreferences' % self.backrefs_created)
+        self.datalog.info('Created %s backreferences' % self.backrefs_created)
 
     def backref_single(self, obj_name, attr, backref_attr):
         filter = {'body': self.body, attr + '__exists': True}

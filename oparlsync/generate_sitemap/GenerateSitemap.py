@@ -12,18 +12,23 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 import os
 import math
-import datetime
 import subprocess
 from ..models import *
-from minio.error import ResponseError, NoSuchKey
+from ..base_task import BaseTask
 
 
-class GenerateSitemap():
-    def __init__(self, main):
-        self.main = main
+class GenerateSitemap(BaseTask):
+    name = 'GenerateSitemap'
+    services = [
+        'mongodb'
+    ]
+
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
 
     def run(self, body_id, *args):
-        if not self.main.config.ENABLE_PROCESSING:
+        if not self.config.ENABLE_PROCESSING:
             return
         self.body = Body.objects(uid=body_id).no_cache().first()
         if not self.body:
@@ -38,21 +43,23 @@ class GenerateSitemap():
         # Create meta-sitemap
 
     def tidy_up(self):
-        for sitemap_file in os.listdir(self.main.config.SITEMAP_DIR):
+        for sitemap_file in os.listdir(self.config.SITEMAP_DIR):
             if sitemap_file[0:24] == str(self.body.id):
-                file_path = os.path.join(self.main.config.SITEMAP_DIR, sitemap_file)
+                file_path = os.path.join(self.config.SITEMAP_DIR, sitemap_file)
                 os.unlink(file_path)
 
     def generate_paper_sitemap(self):
         document_count = Paper.objects(body=self.body.id).count()
         for sitemap_number in range(0, int(math.ceil(document_count / 50000))):
             papers = Paper.objects(body=self.body.id, deleted__ne=True)[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
-            sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, '%s-paper-%s.xml' % (self.body.id, sitemap_number))
+            sitemap_path = os.path.join(self.config.SITEMAP_DIR, '%s-paper-%s.xml' % (self.body.id, sitemap_number))
             with open(sitemap_path, 'w') as f:
                 f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
                 f.write("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
                 for paper in papers.all():
-                    f.write("  <url><loc>%s/paper/%s</loc><lastmod>%s</lastmod></url>\n" % (self.main.config.SITEMAP_BASE_URL, paper.id, paper.modified.strftime('%Y-%m-%d')))
+                    if not paper.modified:
+                        continue
+                    f.write("  <url><loc>%s/paper/%s</loc><lastmod>%s</lastmod></url>\n" % (self.config.SITEMAP_BASE_URL, paper.id, paper.modified.strftime('%Y-%m-%d')))
                 f.write("</urlset>\n")
             subprocess.call(['gzip', sitemap_path])
             self.sitemaps.append('%s-paper-%s.xml' % (self.body.id, sitemap_number))
@@ -63,12 +70,14 @@ class GenerateSitemap():
         document_count = File.objects(body=self.body.id).count()
         for sitemap_number in range(0, int(math.ceil(document_count / 50000))):
             files = File.objects(body=self.body.id, deleted__ne=True)[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
-            sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, '%s-file-%s.xml' % (self.body.id, sitemap_number))
+            sitemap_path = os.path.join(self.config.SITEMAP_DIR, '%s-file-%s.xml' % (self.body.id, sitemap_number))
             with open(sitemap_path, 'w') as f:
                 f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
                 f.write("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
                 for file in files.all():
-                    f.write("  <url><loc>%s/file/%s</loc><lastmod>%s</lastmod></url>\n" % (self.main.config.SITEMAP_BASE_URL, file.id, file.modified.strftime('%Y-%m-%d')))
+                    if not file.modified:
+                        continue
+                    f.write("  <url><loc>%s/file/%s</loc><lastmod>%s</lastmod></url>\n" % (self.config.SITEMAP_BASE_URL, file.id, file.modified.strftime('%Y-%m-%d')))
                 f.write("</urlset>\n")
             subprocess.call(['gzip', sitemap_path])
             self.sitemaps.append('%s-file-%s.xml' % (self.body.id, sitemap_number))
@@ -78,13 +87,14 @@ class GenerateSitemap():
         document_count = Meeting.objects(body=self.body.id).count()
         for sitemap_number in range(0, int(math.ceil(document_count / 50000))):
             meetings = Meeting.objects(body=self.body.id, deleted__ne=True)[sitemap_number * 50000:((sitemap_number + 1) * 50000) - 1]
-            sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, '%s-meeting-%s.xml' % (self.body.id, sitemap_number))
+            sitemap_path = os.path.join(self.config.SITEMAP_DIR, '%s-meeting-%s.xml' % (self.body.id, sitemap_number))
             with open(sitemap_path, 'w') as f:
                 f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
                 f.write("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
                 for meeting in meetings.all():
-                    if meeting.modified:
-                        f.write("  <url><loc>%s/meeting/%s</loc><lastmod>%s</lastmod></url>\n" % (self.main.config.SITEMAP_BASE_URL, meeting.id, meeting.modified.strftime('%Y-%m-%d')))
+                    if not meeting.modified:
+                        continue
+                    f.write("  <url><loc>%s/meeting/%s</loc><lastmod>%s</lastmod></url>\n" % (self.config.SITEMAP_BASE_URL, meeting.id, meeting.modified.strftime('%Y-%m-%d')))
                 f.write("</urlset>\n")
             subprocess.call(['gzip', sitemap_path])
             self.sitemaps.append('%s-meeting-%s.xml' % (self.body.id, sitemap_number))
@@ -92,12 +102,12 @@ class GenerateSitemap():
 
 
     def generate_meta_sitemap(self):
-        meta_sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, '%s.xml' % self.body.id)
+        meta_sitemap_path = os.path.join(self.config.SITEMAP_DIR, '%s.xml' % self.body.id)
         with open(meta_sitemap_path, 'w') as f:
             f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
             f.write("<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
             for sitemap_name in self.sitemaps:
-                f.write("  <sitemap><loc>%s/static/sitemap/%s.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, sitemap_name))
+                f.write("  <sitemap><loc>%s/static/sitemap/%s.gz</loc></sitemap>\n" % (self.config.SITEMAP_BASE_URL, sitemap_name))
             f.write("</sitemapindex>\n")
 
 

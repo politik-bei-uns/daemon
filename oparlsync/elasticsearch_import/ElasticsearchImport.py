@@ -13,18 +13,27 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import json
 from datetime import datetime
 from ..models import *
+from ..base_task import BaseTask
 from mongoengine.base.datastructures import BaseList
 
 
-class ElasticsearchImport():
-    def __init__(self, main):
-        self.main = main
+class ElasticsearchImport(BaseTask):
+    name = 'ElasticsearchImport'
+    services = [
+        'mongodb',
+        'elasticsearch'
+    ]
+
+
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
 
     def __del__(self):
         pass
 
     def run(self, body_id, *args):
-        if not self.main.config.ENABLE_PROCESSING:
+        if not (self.config.ENABLE_PROCESSING and self.config.ES_ENABLED):
             return
         self.body = Body.objects(uid=body_id).no_cache().first()
         if not self.body:
@@ -36,10 +45,12 @@ class ElasticsearchImport():
         self.street_index()
         self.paper_location_index()
         self.paper_index()
+        self.body = None
+        self.es = None
 
     def street_index(self):
 
-        if not self.main.es.indices.exists_alias(name='street-latest'):
+        if not self.es.indices.exists_alias(name='street-latest'):
             now = datetime.utcnow()
             index_name = 'street-' + now.strftime('%Y%m%d-%H%M')
 
@@ -55,14 +66,14 @@ class ElasticsearchImport():
             }
 
 
-            self.main.es.indices.create(index=index_name, body={
+            self.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
                 'mappings': {
                     'street': mapping
                 }
             })
 
-            self.main.es.indices.update_aliases({
+            self.es.indices.update_aliases({
                 'actions': {
                     'add': {
                         'index': index_name,
@@ -71,7 +82,7 @@ class ElasticsearchImport():
                 }
             })
         else:
-            index_name = list(self.main.es.indices.get_alias('street-latest'))[0]
+            index_name = list(self.es.indices.get_alias('street-latest'))[0]
 
         for street in Street.objects(region=self.body.region).no_cache():
             street_dict = street.to_dict(deref='deref_street', format_datetime=True, delete='delete_street', clean_none=True)
@@ -108,7 +119,7 @@ class ElasticsearchImport():
 
             street_dict['legacy'] = bool(street.region.legacy)
 
-            new_doc = self.main.es.index(
+            new_doc = self.es.index(
                 index=index_name,
                 id=str(street.id),
                 doc_type='street',
@@ -118,14 +129,14 @@ class ElasticsearchImport():
             if new_doc['result'] in ['created', 'updated']:
                 self.statistics[new_doc['result']] += 1
             else:
-                self.main.datalog.warn('Unknown result at %s' % street.id)
-        self.main.datalog.info('ElasticSearch street import successfull: %s created, %s updated' % (
+                self.datalog.warn('Unknown result at %s' % street.id)
+        self.datalog.info('ElasticSearch street import successfull: %s created, %s updated' % (
             self.statistics['created'], self.statistics['updated']))
 
 
     def paper_index(self):
 
-        if not self.main.es.indices.exists_alias(name='paper-latest'):
+        if not self.es.indices.exists_alias(name='paper-latest'):
             now = datetime.utcnow()
             index_name = 'paper-' + now.strftime('%Y%m%d-%H%M')
 
@@ -135,14 +146,14 @@ class ElasticsearchImport():
             }
 
 
-            self.main.es.indices.create(index=index_name, body={
+            self.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
                 'mappings': {
                     'paper': mapping
                 }
             })
 
-            self.main.es.indices.update_aliases({
+            self.es.indices.update_aliases({
                 'actions': {
                     'add': {
                         'index': index_name,
@@ -152,7 +163,7 @@ class ElasticsearchImport():
             })
 
         else:
-            index_name = list(self.main.es.indices.get_alias('paper-latest'))[0]
+            index_name = list(self.es.indices.get_alias('paper-latest'))[0]
 
 
         regions = []
@@ -163,7 +174,7 @@ class ElasticsearchImport():
 
         for paper in Paper.objects(body=self.body).no_cache():
             if paper.deleted:
-                self.main.es.delete(
+                self.es.delete(
                     index=index_name,
                     id=str(paper.id),
                     doc_type='paper',
@@ -175,7 +186,7 @@ class ElasticsearchImport():
             paper_dict['region'] = regions
             paper_dict['legacy'] = 'legacy' in paper_dict
 
-            new_doc = self.main.es.index(
+            new_doc = self.es.index(
                 index=index_name,
                 id=str(paper.id),
                 doc_type='paper',
@@ -184,13 +195,13 @@ class ElasticsearchImport():
             if new_doc['result'] in ['created', 'updated']:
                 self.statistics[new_doc['result']] += 1
             else:
-                self.main.datalog.warn('Unknown result at %s' % paper.id)
-        self.main.datalog.info('ElasticSearch paper import successfull: %s created, %s updated' % (
+                self.datalog.warn('Unknown result at %s' % paper.id)
+        self.datalog.info('ElasticSearch paper import successfull: %s created, %s updated' % (
             self.statistics['created'], self.statistics['updated']))
 
     def paper_location_index(self):
 
-        if not self.main.es.indices.exists_alias(name='paper-location-latest'):
+        if not self.es.indices.exists_alias(name='paper-location-latest'):
             now = datetime.utcnow()
             index_name = 'paper-location-' + now.strftime('%Y%m%d-%H%M')
 
@@ -202,14 +213,14 @@ class ElasticsearchImport():
                 'type': 'boolean'
             }
 
-            self.main.es.indices.create(index=index_name, body={
+            self.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
                 'mappings': {
                     'location': mapping
                 }
             })
 
-            self.main.es.indices.update_aliases({
+            self.es.indices.update_aliases({
                 'actions': {
                     'add': {
                         'index': index_name,
@@ -219,7 +230,7 @@ class ElasticsearchImport():
             })
 
         else:
-            index_name = list(self.main.es.indices.get_alias('paper-location-latest'))[0]
+            index_name = list(self.es.indices.get_alias('paper-location-latest'))[0]
 
         regions = []
         region = self.body.region
@@ -229,7 +240,7 @@ class ElasticsearchImport():
 
         for location in Location.objects(body=self.body).no_cache():
             if location.deleted:
-                self.main.es.delete(
+                self.es.delete(
                     index=index_name,
                     id=str(location.id),
                     doc_type='location',
@@ -265,7 +276,7 @@ class ElasticsearchImport():
 
             location_dict['legacy'] = bool(location.region.legacy)
 
-            new_doc = self.main.es.index(
+            new_doc = self.es.index(
                 index=index_name,
                 id=str(location.id),
                 doc_type='location',
@@ -274,8 +285,8 @@ class ElasticsearchImport():
             if new_doc['result'] in ['created', 'updated']:
                 self.statistics[new_doc['result']] += 1
             else:
-                self.main.datalog.warn('Unknown result at %s' % location.id)
-        self.main.datalog.info('ElasticSearch paper-location import successfull: %s created, %s updated' % (
+                self.datalog.warn('Unknown result at %s' % location.id)
+        self.datalog.info('ElasticSearch paper-location import successfull: %s created, %s updated' % (
         self.statistics['created'], self.statistics['updated']))
 
     def es_mapping_generator(self, base_object, deref=None, nested=False, delete=None):
@@ -305,7 +316,7 @@ class ElasticsearchImport():
                     'type': 'geo_shape'
                 }
                 mapping['geojson'] = {
-                    'type': 'string'
+                    'type': 'text'
                 }
                 mapping['geotype'] = {
                     'type': 'keyword'
@@ -326,7 +337,7 @@ class ElasticsearchImport():
     def es_mapping_field_generator(self, field):
         result = {'store': True}
         if field.__class__.__name__ == 'ObjectIdField':
-            result['type'] = 'string'
+            result['type'] = 'text'
         elif field.__class__.__name__ == 'IntField':
             result['type'] = 'integer'
         elif field.__class__.__name__ == 'DateTimeField':
@@ -337,15 +348,15 @@ class ElasticsearchImport():
                 result['format'] = 'date'
         elif field.__class__.__name__ == 'StringField':
             result['fields'] = {}
-            result['type'] = 'string'
+            result['type'] = 'text'
             if hasattr(field, 'fulltext'):
-                result['index'] = 'analyzed'
+#                result['index'] = 'analyzed'
                 result['analyzer'] = 'default_analyzer'
-            else:
-                result['index'] = 'not_analyzed'
+#            else:
+#                result['index'] = 'not_analyzed'
             if hasattr(field, 'sortable'):
                 result['fields']['sort'] = {
-                    'type': 'string',
+                    'type': 'text',
                     'analyzer': 'sort_analyzer',
                     'fielddata': True
                 }
@@ -358,7 +369,7 @@ class ElasticsearchImport():
     def es_mapping_field_object(self):
         return {
             'fielddata': True,
-            'type': 'string'
+            'type': 'text'
         }
 
     def es_settings(self):

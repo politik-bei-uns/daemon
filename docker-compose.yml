@@ -14,12 +14,12 @@ services:
       - elasticsearch
       - mongodb
       - minio
-    #entrypoint: ['sleep', '6000']
+    entrypoint: ['sleep', '60000']
     networks:
       politk-bei-uns:
         aliases:
           - flask
-    entrypoint: ["python3", "manage.py", "daemon", "start-foreground"]
+    #entrypoint: ["python3", "manage.py", "daemon", "start-foreground"]
 
 
   mongodb:

@@ -11,7 +11,8 @@ RUN apt-get update && \
     locale-gen en_US en_US.UTF-8 && \
     echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' > /etc/default/locale  && \
     apt-get dist-upgrade -y && \
-    apt-get install -y apt-utils python3 python3-pip python3-dev build-essential python3-venv libboost-python-dev libbz2-dev zlib1g-dev iputils-ping curl telnet && \
+    apt-get install -y apt-utils python3 python3-pip python3-dev build-essential python3-venv libboost-python-dev\
+    libbz2-dev zlib1g-dev iputils-ping curl telnet ghostscript poppler-utils jpegoptim abiword openjdk-9-jre-headless psmisc && \
     apt-get autoremove -y && \
     apt-get clean
 

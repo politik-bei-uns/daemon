@@ -11,19 +11,24 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 """
 
 import os
-import sys
 import shutil
 import datetime
-import subprocess
 from PIL import Image
+from ..base_task import BaseTask
 from ..models import Body, File
 from minio.error import ResponseError, NoSuchKey
 from pymongo.errors import CursorNotFound
 
 
-class GenerateThumbnails():
-    def __init__(self, main):
-        self.main = main
+class GenerateThumbnails(BaseTask):
+    name = 'GenerateThumbnails'
+    services = [
+        'mongodb',
+        's3'
+    ]
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
         self.statistics = {
             'wrong-mimetype': 0,
             'file-missing': 0,
@@ -31,7 +36,7 @@ class GenerateThumbnails():
         }
 
     def run(self, body_id, *args):
-        if not self.main.config.ENABLE_PROCESSING:
+        if not self.config.ENABLE_PROCESSING:
             return
         self.body = Body.objects(uid=body_id).no_cache().first()
         if not self.body:
@@ -48,14 +53,14 @@ class GenerateThumbnails():
                 break
             if not file:
                 break
-            self.main.datalog.info('processing file %s' % file.id)
+            self.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()
             file.thumbnailGenerated = datetime.datetime.now()
 
             # get file
-            file_path =  os.path.join(self.main.config.TMP_THUMBNAIL_DIR, str(file.id))
-            if not self.main.get_file(file, file_path):
-                self.main.datalog.warn('file not found: %s' % file.id)
+            file_path =  os.path.join(self.config.TMP_THUMBNAIL_DIR, str(file.id))
+            if not self.get_file(file, file_path):
+                self.datalog.warn('file not found: %s' % file.id)
                 self.statistics['file-missing'] += 1
                 file.thumbnailStatus = 'file-missing'
                 file.thumbnailsGenerated = datetime.datetime.now()
@@ -64,7 +69,7 @@ class GenerateThumbnails():
                 continue
 
             if file.mimeType not in ['application/msword', 'application/pdf']:
-                self.main.datalog.warn('wrong mimetype: %s' % file.id)
+                self.datalog.warn('wrong mimetype: %s' % file.id)
                 self.statistics['wrong-mimetype'] += 1
                 file.thumbnailStatus = 'wrong-mimetype'
                 file.thumbnailsGenerated = datetime.datetime.now()
@@ -77,17 +82,17 @@ class GenerateThumbnails():
             if file.mimeType == 'application/msword':
                 file_path_old = file_path
                 file_path = file_path + '-old'
-                cmd = ('%s --to=PDF -o %s %s' % (self.main.config.ABIWORD_COMMAND, file_path, file_path_old))
-                self.main.execute(cmd, self.body.id)
+                cmd = ('%s --to=PDF -o %s %s' % (self.config.ABIWORD_COMMAND, file_path, file_path_old))
+                self.execute(cmd, self.body.id)
 
             # create folders
-            max_folder = os.path.join(self.main.config.TMP_THUMBNAIL_DIR, str(file.id) + '-max')
+            max_folder = os.path.join(self.config.TMP_THUMBNAIL_DIR, str(file.id) + '-max')
             if not os.path.exists(max_folder):
                 os.makedirs(max_folder)
-            out_folder = os.path.join(self.main.config.TMP_THUMBNAIL_DIR, str(file.id) + '-out')
+            out_folder = os.path.join(self.config.TMP_THUMBNAIL_DIR, str(file.id) + '-out')
             if not os.path.exists(out_folder):
                 os.makedirs(out_folder)
-            for size in self.main.config.THUMBNAIL_SIZES:
+            for size in self.config.THUMBNAIL_SIZES:
                 if not os.path.exists(os.path.join(out_folder, str(size))):
                     os.makedirs(os.path.join(out_folder, str(size)))
             file.thumbnail = {}
@@ -96,8 +101,8 @@ class GenerateThumbnails():
             # generate max images
             max_path = max_folder + os.sep + '%d.png'
             cmd = '%s -dQUIET -dSAFER -dBATCH -dNOPAUSE -sDisplayHandle=0 -sDEVICE=png16m -r100 -dTextAlphaBits=4 -sOutputFile=%s -f %s' % (
-            self.main.config.GHOSTSCRIPT_COMMAND, max_path, file_path)
-            self.main.execute(cmd, self.body.id)
+            self.config.GHOSTSCRIPT_COMMAND, max_path, file_path)
+            self.execute(cmd, self.body.id)
 
             # generate thumbnails based on max images
             for max_file in os.listdir(max_folder):
@@ -112,7 +117,7 @@ class GenerateThumbnails():
                     'pages': {}
                 }
 
-                for size in self.main.config.THUMBNAIL_SIZES:
+                for size in self.config.THUMBNAIL_SIZES:
                     (width, height) = self.scale_width_height(size, owidth, oheight)
                     # Two-way resizing
                     resizedim = im
@@ -123,8 +128,8 @@ class GenerateThumbnails():
                     out_path = os.path.join(out_folder, str(size), str(num) + '.jpg')
                     resizedim.save(out_path, subsampling=0, quality=80)
                     # optimize image
-                    cmd = '%s --preserve-perms %s' % (self.main.config.JPEGOPTIM_PATH, out_path)
-                    self.main.execute(cmd, self.body.id)
+                    cmd = '%s --preserve-perms %s' % (self.config.JPEGOPTIM_PATH, out_path)
+                    self.execute(cmd, self.body.id)
                     # create mongodb object and append it to file
                     file.thumbnail[str(num)]['pages'][str(size)] = {
                         'width': width,
@@ -132,17 +137,17 @@ class GenerateThumbnails():
                         'filesize': os.path.getsize(out_path)
                     }
             # save all generated files in minio
-            for size in self.main.config.THUMBNAIL_SIZES:
+            for size in self.config.THUMBNAIL_SIZES:
                 for out_file in os.listdir(os.path.join(out_folder, str(size))):
                     try:
-                        self.main.s3.fput_object(
-                            self.main.config.S3_BUCKET,
+                        self.s3.fput_object(
+                            self.config.S3_BUCKET,
                             "file-thumbnails/%s/%s/%s/%s" % (self.body.id, str(file.id), str(size), out_file),
                             os.path.join(out_folder, str(size), out_file),
                             'image/jpeg'
                         )
                     except ResponseError as err:
-                        self.main.datalog.error(
+                        self.datalog.error(
                             'Critical error saving file from File %s from Body %s' % (file.id, self.body.id))
             # save in mongodb
             file.thumbnailStatus = 'successful'

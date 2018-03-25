@@ -14,12 +14,21 @@ import os
 import datetime
 import subprocess
 from ..models import *
+from ..base_task import BaseTask
 from minio.error import ResponseError, NoSuchKey
 
 
-class GenerateFulltext():
-    def __init__(self, main):
-        self.main = main
+class GenerateFulltext(BaseTask):
+    name = 'GenerateFulltext'
+    services = [
+        'mongodb',
+        's3'
+    ]
+
+
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
         self.statistics = {
             'wrong-mimetype': 0,
             'file-missing': 0,
@@ -28,7 +37,7 @@ class GenerateFulltext():
         }
 
     def run(self, body_id, *args):
-        if not self.main.config.ENABLE_PROCESSING:
+        if not self.config.ENABLE_PROCESSING:
             return
         self.body = Body.objects(uid=body_id).no_cache().first()
         if not self.body:
@@ -36,13 +45,13 @@ class GenerateFulltext():
 
         files = File.objects(textStatus__exists=False, body=self.body.id).timeout(False).no_cache().all()
         for file in files:
-            self.main.datalog.info('processing file %s' % file.id)
+            self.datalog.info('processing file %s' % file.id)
             file.modified = datetime.datetime.now()
             file.textGenerated = datetime.datetime.now()
             # get file
-            file_path = os.path.join(self.main.config.TMP_FULLTEXT_DIR, str(file.id))
-            if not self.main.get_file(file, file_path):
-                self.main.datalog.warn('file not found: %s' % file.id)
+            file_path = os.path.join(self.config.TMP_FULLTEXT_DIR, str(file.id))
+            if not self.get_file(file, file_path):
+                self.datalog.warn('file not found: %s' % file.id)
                 self.statistics['file-missing'] += 1
                 file.textStatus = 'file-missing'
                 file.save()
@@ -50,9 +59,9 @@ class GenerateFulltext():
 
             # decide app based on mimetype
             if file.mimeType == 'application/pdf':
-                cmd = '%s -nopgbrk -enc UTF-8 %s -' % (self.main.config.PDFTOTEXT_COMMAND, file_path)
+                cmd = '%s -nopgbrk -enc UTF-8 %s -' % (self.config.PDFTOTEXT_COMMAND, file_path)
             elif file.mimeType == 'application/msword':
-                cmd = '%s --to=txt --to-name=fd://1 %s' % (self.main.config.ABIWORD_COMMAND, file_path)
+                cmd = '%s --to=txt --to-name=fd://1 %s' % (self.config.ABIWORD_COMMAND, file_path)
             else:
                 cmd = None
                 self.statistics['wrong-mimetype'] += 1
@@ -61,7 +70,7 @@ class GenerateFulltext():
                 os.unlink(file_path)
                 continue
 
-            text = self.main.execute(cmd, self.body.id)
+            text = self.execute(cmd, self.body.id)
             if text:
                 text = text.decode().strip().replace(u"\u00a0", " ")
 

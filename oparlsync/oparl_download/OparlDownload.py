@@ -15,16 +15,18 @@ import os
 import sys
 import time
 import json
+import pytz
 import minio
 import urllib
 import hashlib
 import datetime
 import requests
-import dateutil
+from dateutil.parser import parse as dateutil_parse
 from ssl import SSLError
 from geojson import Feature
 from urllib.parse import urlparse
 from ..models import *
+from ..base_task import BaseTask
 from pymongo import ReturnDocument
 from bson.objectid import ObjectId
 from minio.error import ResponseError, SignatureDoesNotMatch
@@ -32,8 +34,17 @@ from mongoengine.errors import ValidationError
 from pymongo.errors import ServerSelectionTimeoutError
 
 
-class OparlDownload():
-    def __init__(self, main):
+class OparlDownload(BaseTask):
+    name = 'OparlDownload'
+    services = [
+        'mongodb',
+        's3'
+    ]
+
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
+
         self.start_time = datetime.datetime.utcnow()
         self.valid_objects = [
             Body,
@@ -51,13 +62,13 @@ class OparlDownload():
         self.body_objects = [
             Organization,
             Person,
-            Meeting,
-            Paper
+            #Meeting,
+            #Paper
         ]
 
         # set s3 files readonly if necessary
-        if main.s3.get_bucket_policy(main.config.S3_BUCKET, "files") != 'readonly':
-            main.s3.set_bucket_policy(main.config.S3_BUCKET, "files", minio.policy.Policy.READ_ONLY)
+        if self.s3.get_bucket_policy(self.config.S3_BUCKET, "files") != 'readonly':
+            self.s3.set_bucket_policy(self.config.S3_BUCKET, "files", minio.policy.Policy.READ_ONLY)
 
         # statistics
         self.mongodb_request_count = 0
@@ -70,22 +81,19 @@ class OparlDownload():
         self.minio_time = 0
         self.wait_time = 0
 
-        self.main = main
         self.body_uid = False
         self.organization_list_url = False
         self.person_list_url = False
         self.meeting_list_url = False
         self.paper_list_url = False
 
+    def reset_cache(self):
         self.cache = {}
         for obj in self.valid_objects:
             self.cache[obj.__name__] = {}
 
-
-    def __del__(self):
-        pass
-
     def run(self, body_id, *args):
+        self.reset_cache()
         if len(args):
             if args[0] == 'full':
                 self.run_full(body_id, True)
@@ -95,10 +103,10 @@ class OparlDownload():
             self.run_full(body_id)
 
     def run_full(self, body_id, all=False):
-        self.body_config = self.main.get_body_config(body_id)
-        self.main.statuslog.info('Body %s sync launched.' % body_id)
+        self.body_config = self.get_body_config(body_id)
+        self.datalog.info('Body %s sync launched.' % body_id)
         if not self.body_config:
-            self.main.statuslog.error('body id %s configuration not found' % body_id)
+            self.datalog.error('body id %s configuration not found' % body_id)
             return
         if 'url' not in self.body_config:
             return
@@ -114,24 +122,24 @@ class OparlDownload():
         body.lastSync = self.start_time.isoformat()
         body.save()
 
-        self.main.statuslog.info('Body %s sync done. Results:' % body_id)
-        self.main.statuslog.info('mongodb requests:     %s' % self.mongodb_request_count)
-        self.main.statuslog.info('cached requests:      %s' % self.mongodb_request_cached)
-        self.main.statuslog.info('http requests:        %s' % self.http_request_count)
-        self.main.statuslog.info('mongodb time:         %s s' % round(self.mongodb_request_time, 1))
-        self.main.statuslog.info('minio time:           %s s' % round(self.minio_time, 1))
-        self.main.statuslog.info('http time:            %s s' % round(self.http_request_time, 1))
-        self.main.statuslog.info('file download time:   %s s' % round(self.file_download_time, 1))
-        self.main.statuslog.info('download not reqired: %s' % self.download_not_required)
-        self.main.statuslog.info('wait time:            %s s' % round(self.wait_time, 1))
-        self.main.statuslog.info('app time:             %s s' % round(
+        self.datalog.info('Body %s sync done. Results:' % body_id)
+        self.datalog.info('mongodb requests:     %s' % self.mongodb_request_count)
+        self.datalog.info('cached requests:      %s' % self.mongodb_request_cached)
+        self.datalog.info('http requests:        %s' % self.http_request_count)
+        self.datalog.info('mongodb time:         %s s' % round(self.mongodb_request_time, 1))
+        self.datalog.info('minio time:           %s s' % round(self.minio_time, 1))
+        self.datalog.info('http time:            %s s' % round(self.http_request_time, 1))
+        self.datalog.info('file download time:   %s s' % round(self.file_download_time, 1))
+        self.datalog.info('download not reqired: %s' % self.download_not_required)
+        self.datalog.info('wait time:            %s s' % round(self.wait_time, 1))
+        self.datalog.info('app time:             %s s' % round(
             time.time() - start_time - self.mongodb_request_time - self.minio_time - self.http_request_time - self.wait_time - self.file_download_time,
             1))
-        self.main.statuslog.info('all time:             %s s' % round(time.time() - start_time, 1))
-        self.main.statuslog.info('processed %s objects per second' % round(self.mongodb_request_count / (time.time() - start_time), 1))
+        self.datalog.info('all time:             %s s' % round(time.time() - start_time, 1))
+        self.datalog.info('processed %s objects per second' % round(self.mongodb_request_count / (time.time() - start_time), 1))
 
     def run_single(self, body_id, *args):
-        self.body_config = self.main.get_body_config(body_id)
+        self.body_config = self.get_body_config(body_id)
         self.last_update = False
         try:
             body = Body.objects(originalId=self.body_config['url']).no_cache().first()
@@ -168,8 +176,8 @@ class OparlDownload():
 
     def get_body(self, set_last_sync=True):
         self.body_uid = False
-        if self.main.config.USE_MIRROR:
-            body_raw = self.get_url_json(self.main.config.OPARL_MIRROR_URL + '/body-by-id?id=' + urllib.parse.quote_plus(self.body_config['url']), wait=False)
+        if self.config.USE_MIRROR:
+            body_raw = self.get_url_json(self.config.OPARL_MIRROR_URL + '/body-by-id?id=' + urllib.parse.quote_plus(self.body_config['url']), wait=False)
         else:
             body_raw = self.get_url_json(self.body_config['url'], wait=False)
         if not body_raw:
@@ -188,17 +196,17 @@ class OparlDownload():
         }
 
         if 'legacy' not in self.body_config:
-            object_json['$set']['originalId'] = body_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.main.config.USE_MIRROR else body_raw['id']
-        if self.main.config.ENABLE_PROCESSING:
+            object_json['$set']['originalId'] = body_raw[self.config.OPARL_MIRROR_PREFIX + ':originalId'] if self.config.USE_MIRROR else body_raw['id']
+        if self.config.ENABLE_PROCESSING:
             region = Region.objects(rgs=self.body_config['rgs']).first()
             if region:
                 object_json['$set']['region'] = region.id
-        if self.main.config.USE_MIRROR:
+        if self.config.USE_MIRROR:
             object_json['$set']['mirrorId'] = body_raw['id']
         self.correct_document_values(object_json['$set'])
         self.mongodb_request_count += 1
         start_time = time.time()
-        result = self.main.db_raw.body.find_one_and_update(
+        result = self.db_raw.body.find_one_and_update(
             query,
             object_json,
             upsert=True,
@@ -207,23 +215,23 @@ class OparlDownload():
         self.body_uid = result['_id']
 
         if 'lastSync' in result:
-            local_time_zone = dateutil.tz.gettz('Europe/Berlin')
-            self.last_update = result['lastSync'].replace(microsecond=0, tzinfo=local_time_zone)
+            self.last_update = pytz.UTC.localize(result['lastSync']).astimezone(pytz.timezone('Europe/Berlin'))
         else:
             self.last_update = False
         self.save_object(Body, body_raw)
 
         self.organization_list_url = body_raw['organization']
         self.person_list_url = body_raw['person']
-        self.meeting_list_url = body_raw['meeting']
-        self.paper_list_url = body_raw['paper']
+        #self.meeting_list_url = body_raw['meeting']
+        #self.paper_list_url = body_raw['paper']
 
-        if self.main.config.USE_MIRROR and self.last_update:
+        if self.config.USE_MIRROR and self.last_update and False:
             self.membership_list_url = body_raw['membership']
             self.agenda_item_list_url = body_raw['agendaItem']
             self.consultation_list_url = body_raw['consultation']
             self.location_list_url = body_raw['locationList']
             self.file_list_url = body_raw['file']
+            """
             self.body_objects += [
                 Membership,
                 AgendaItem,
@@ -231,17 +239,18 @@ class OparlDownload():
                 File,
                 Location
             ]
+            """
 
     def get_list(self, object, list_url=False):
         if list_url:
             object_list = self.get_url_json(list_url, is_list=True)
         else:
-            if self.last_update and (self.body_config['force_full_sync'] == 0 or self.main.config.USE_MIRROR):
+            if self.last_update and (self.body_config['force_full_sync'] == 0 or self.config.USE_MIRROR):
                 last_update_tmp = self.last_update
-                if self.main.config.USE_MIRROR:
+                if self.config.USE_MIRROR:
                     last_update_tmp = last_update_tmp - datetime.timedelta(weeks=1)
                 object_list = self.get_url_json(
-                    getattr(self, '%s_list_url' % object._object_db_name) + '?modified_since=%s' % self.last_update.isoformat(),
+                    getattr(self, '%s_list_url' % object._object_db_name) + '?modified_since=%s' % last_update_tmp.strftime('%Y-%m-%dT%H-%M-%SZ'),
                     is_list=True
                 )
             else:
@@ -264,7 +273,9 @@ class OparlDownload():
             del object_raw['locationObject']
 
         # Iterate though all Objects and fix stuff (recursive)
+        print('try to save %s %s' % (object.__name__, object_raw['id']))
         for key, value in object_raw.items():
+            print(object_instance._fields.keys())
             if key in object_instance._fields:
                 # List of something
                 if type(object_instance._fields[key]).__name__ == 'ListField':
@@ -276,7 +287,10 @@ class OparlDownload():
                     if type(object_instance._fields[key].field).__name__ == 'ReferenceField':
                         dbref_data[key] = []
                         for valid_object in self.valid_objects:
-                            if valid_object.__name__ == object_instance._fields[key].field.document_type_obj:
+                            check = object_instance._fields[key].field.document_type_obj
+                            if type(check) != str:
+                                check = check.__name__
+                            if valid_object.__name__ == check:
                                 for single in value:
                                     if valid_object.__name__ == 'Body':
                                         dbref_data[key].append(ObjectId(self.body_uid))
@@ -304,12 +318,15 @@ class OparlDownload():
                 # Single Relation
                 elif type(object._fields[key]).__name__ == 'ReferenceField':
                     for valid_object in self.valid_objects:
-                        if valid_object.__name__ == object_instance._fields[key].document_type_obj:
+                        check = object_instance._fields[key].document_type_obj
+                        if type(check) != str:
+                            check = check.__name__
+                        if valid_object.__name__ == check:
                             if valid_object.__name__ == 'Body':
                                 dbref_data[key] = ObjectId(self.body_uid)
                                 continue
                             # Stupid bugfix for Person -> Location is an object id
-                            if object.__name__ == 'Person' and valid_object.__name__ == 'Location' and isinstance(value, str) and not self.main.config.USE_MIRROR:
+                            if object.__name__ == 'Person' and valid_object.__name__ == 'Location' and isinstance(value, str) and not self.config.USE_MIRROR:
                                 value = self.get_url_json(value)
                             if isinstance(value, dict):
                                 sub_object_raw = value
@@ -333,7 +350,7 @@ class OparlDownload():
             try:
                 object_instance.validate()
             except ValidationError as err:
-                self.main.datalog.warn(
+                self.datalog.warn(
                     '%s %s from Body %s failed validation.' % (object.__name__, object_raw['id'], self.body_uid))
         # fix modified
         if object_instance.created and object_instance.modified:
@@ -341,13 +358,13 @@ class OparlDownload():
                 object_instance.modified = object_instance.created
 
         # Etwas umständlicher Weg über pymongo
-        if self.main.config.USE_MIRROR:
+        if self.config.USE_MIRROR:
             query = {
                 'mirrorId': object_instance.originalId
             }
             object_instance.mirrorId = object_instance.originalId
-            if self.main.config.OPARL_MIRROR_PREFIX + ':originalId' in object_raw:
-                object_instance.originalId = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalId']
+            if self.config.OPARL_MIRROR_PREFIX + ':originalId' in object_raw:
+                object_instance.originalId = object_raw[self.config.OPARL_MIRROR_PREFIX + ':originalId']
             else:
                 del object_instance.originalId
         else:
@@ -368,10 +385,10 @@ class OparlDownload():
                         geojson_check = Feature(geometry=object_json['geojson']['geometry'])
                         if not geojson_check.is_valid:
                             del object_json['geojson']
-                            self.main.datalog.warn('invalid geojson found at %s' % object_instance.originalId)
+                            self.datalog.warn('invalid geojson found at %s' % object_instance.originalId)
                     except ValueError:
                         del object_json['geojson']
-                        self.main.datalog.warn('invalid geojson found at %s' % object_instance.originalId)
+                        self.datalog.warn('invalid geojson found at %s' % object_instance.originalId)
 
         elif object == Body:
             if self.body_config['name']:
@@ -380,16 +397,16 @@ class OparlDownload():
             object_json['body'] = self.body_uid
 
         # Set some File values if using mirror
-        if object == File and self.main.config.USE_MIRROR:
+        if object == File and self.config.USE_MIRROR:
             object_json['storedAtMirror'] = True
             if 'originalAccessUrl' in object_json:
                 object_json['mirrorAccessUrl'] = object_json['originalAccessUrl']
             if 'originalDownloadUrl' in object_json:
                 object_json['mirrorDownloadUrl'] = object_json['originalDownloadUrl']
-            if self.main.config.OPARL_MIRROR_PREFIX + ':originalAccessUrl' in object_raw:
-                object_json['originalAccessUrl'] = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalAccessUrl']
-            if self.main.config.OPARL_MIRROR_PREFIX + ':originalDownloadUrl' in object_raw:
-                object_json['originalDownloadUrl'] = object_raw[self.main.config.OPARL_MIRROR_PREFIX + ':originalDownloadUrl']
+            if self.config.OPARL_MIRROR_PREFIX + ':originalAccessUrl' in object_raw:
+                object_json['originalAccessUrl'] = object_raw[self.config.OPARL_MIRROR_PREFIX + ':originalAccessUrl']
+            if self.config.OPARL_MIRROR_PREFIX + ':originalDownloadUrl' in object_raw:
+                object_json['originalDownloadUrl'] = object_raw[self.config.OPARL_MIRROR_PREFIX + ':originalDownloadUrl']
 
         # set all the dbrefs generated before
         object_json.update(dbref_data)
@@ -404,17 +421,17 @@ class OparlDownload():
         self.correct_document_values(object_json['$set'])
         self.mongodb_request_count += 1
         start_time = time.time()
-        result = self.main.db_raw[object._object_db_name].find_one_and_update(
+        result = self.db_raw[object._object_db_name].find_one_and_update(
             query,
             object_json,
             upsert=True,
             return_document=ReturnDocument.AFTER
         )
-        self.main.datalog.debug('%s %s from Body %s saved successfully.' % (object.__name__, result['_id'], self.body_uid))
+        self.datalog.debug('%s %s from Body %s saved successfully.' % (object.__name__, result['_id'], self.body_uid))
         self.mongodb_request_time += time.time() - start_time
 
         # Cache Original ID -> MongoDB ID
-        if self.main.config.USE_MIRROR:
+        if self.config.USE_MIRROR:
             if object_instance.mirrorId not in self.cache[object.__name__]:
                 self.cache[object.__name__][object_instance.mirrorId] = ObjectId(result['_id'])
         else:
@@ -422,7 +439,7 @@ class OparlDownload():
                 self.cache[object.__name__][object_instance.originalId] = ObjectId(result['_id'])
 
         # We need to download files if necessary
-        if object == File and not self.main.config.USE_MIRROR:
+        if object == File and not self.config.USE_MIRROR:
             download_file = True
             if self.body_config['force_full_sync'] == 1 and self.last_update and object_instance.modified:
                 if object_instance.modified < self.last_update:
@@ -434,10 +451,10 @@ class OparlDownload():
             if 'originalAccessUrl' in object_json['$set'] and download_file:
                 file_name_internal = str(result['_id'])
                 start_time = time.time()
-                file_status = self.get_file(object_json['$set']['originalAccessUrl'], file_name_internal)
+                file_status = self.download_file(object_json['$set']['originalAccessUrl'], file_name_internal)
                 self.file_download_time += time.time() - start_time
                 if not file_status:
-                    self.main.datalog.warn('No valid file could be downloaded at File %s from Body %s' % (result['_id'], self.body_uid))
+                    self.datalog.warn('No valid file could be downloaded at File %s from Body %s' % (result['_id'], self.body_uid))
                 else:
                     start_time = time.time()
                     object_json_update = {}
@@ -453,7 +470,7 @@ class OparlDownload():
                             if len(splitted_file_name[-1]) > 3 and '.' in splitted_file_name[-1]:
                                 file_name = splitted_file_name[-1]
                     if not file_name or not mime_type:
-                        self.main.datalog.warn('No file name or no mime type avaliable at File %s from Body %s' % (
+                        self.datalog.warn('No file name or no mime type avaliable at File %s from Body %s' % (
                         result['_id'], self.body_uid))
                     else:
                         content_type = object_json['$set']['mimeType']
@@ -461,48 +478,49 @@ class OparlDownload():
                             'Content-Disposition': 'filename=%s' % file_name
                         }
                         try:
-                            self.main.s3.fput_object(
-                                self.main.config.S3_BUCKET,
+                            self.s3.fput_object(
+                                self.config.S3_BUCKET,
                                 "files/%s/%s" % (self.body_uid, file_name_internal),
-                                os.path.join(self.main.config.TMP_FILE_DIR, file_name_internal),
+                                os.path.join(self.config.TMP_FILE_DIR, file_name_internal),
                                 content_type=content_type,
                                 metadata=metadata
                             )
-                            self.main.datalog.debug('Binary file at File %s from Body %s saved successfully.' % (result['_id'], self.body_uid))
+                            self.datalog.debug('Binary file at File %s from Body %s saved successfully.' % (result['_id'], self.body_uid))
                             object_json_update['downloaded'] = True
                         except (ResponseError, SignatureDoesNotMatch) as err:
-                            self.main.datalog.warn(
+                            self.datalog.warn(
                                 'Critical error saving file from File %s from Body %s' % (result['_id'], self.body_uid))
                     self.minio_time += time.time() - start_time
                     if 'size' not in object_json['$set']:
-                        object_json_update['size'] = os.path.getsize(os.path.join(self.main.config.TMP_FILE_DIR, file_name_internal))
+                        object_json_update['size'] = os.path.getsize(os.path.join(self.config.TMP_FILE_DIR, file_name_internal))
                     if 'sha1Checksum' not in object_json['$set'] or 'sha512Checksum' not in object_json['$set']:
-                        with open(os.path.join(self.main.config.TMP_FILE_DIR, file_name_internal), 'rb') as checksum_file:
+                        with open(os.path.join(self.config.TMP_FILE_DIR, file_name_internal), 'rb') as checksum_file:
                             checksum_file_content = checksum_file.read()
                             if 'sha1Checksum' not in object_json['$set']:
                                 object_json_update['sha1Checksum'] = hashlib.sha1(checksum_file_content).hexdigest()
                             if 'sha512Checksum' not in object_json['$set']:
                                 object_json_update['sha512Checksum'] = hashlib.sha512(checksum_file_content).hexdigest()
                     if len(object_json_update.keys()):
-                        result = self.main.db_raw[object._object_db_name].find_one_and_update(
+                        result = self.db_raw[object._object_db_name].find_one_and_update(
                             query,
                             { '$set': object_json_update },
                             upsert=True,
                             return_document=ReturnDocument.AFTER
                         )
                         self.mongodb_request_count += 1
-                    os.remove(os.path.join(self.main.config.TMP_FILE_DIR, file_name_internal))  # also get all derivativeFile
+                    os.remove(os.path.join(self.config.TMP_FILE_DIR, file_name_internal))  # also get all derivativeFile
             else:
                 self.download_not_required += 1
 
         # If we have a Paper with a Location, we need to mark this as official=ris relation if processing is enabled
-        if object == Paper and 'location' in object_json['$set'] and self.main.config.ENABLE_PROCESSING:
+        if object == Paper and 'location' in object_json['$set'] and self.config.ENABLE_PROCESSING and False:
             for location_obj_id in object_json['$set']['location']:
                 if not LocationOrigin.objects(paper=ObjectId(result['_id']), location=location_obj_id, origin='ris').no_cache().count():
                     location_origin = LocationOrigin()
                     location_origin.location = location_obj_id
                     location_origin.paper = ObjectId(result['_id'])
                     location_origin.origin = 'ris'
+
                     location_origin.save()
                     self.mongodb_request_count += 3
                     paper = Paper.objects(id=ObjectId(result['_id'])).no_cache().first()
@@ -510,20 +528,22 @@ class OparlDownload():
                         paper.locationOrigin.append(location_origin.id)
                         paper.save()
                         self.mongodb_request_count += 1
+                    # delete refs
+                    location_origin = None
+                    paper = None
 
         return result
 
-    ### global
 
     def save_document_values(self, document, key, value):
         if type(document._fields[key]).__name__ == 'DateTimeField':
             try:
-                dt = dateutil.parser.parse(value)
+                dt = dateutil_parse(value)
             except ValueError:
                 delattr(document, key)
                 return
             if dt.tzname():
-                setattr(document, key, dt.astimezone(timezone('UTC')).replace(tzinfo=None))
+                setattr(document, key, dt.astimezone(pytz.timezone('UTC')).replace(tzinfo=None))
             else:
                 setattr(document, key, dt)
         elif key == 'id':
@@ -551,16 +571,16 @@ class OparlDownload():
                     self.wait_time += self.body_config['wait_time']
                     time.sleep(self.body_config['wait_time'])
                 else:
-                    self.wait_time += self.main.config.GET_URL_WAIT_TIME
-                    time.sleep(self.main.config.GET_URL_WAIT_TIME)
-            self.main.datalog.info('%s: get %s' % (self.body_config['id'], url))
+                    self.wait_time += self.config.GET_URL_WAIT_TIME
+                    time.sleep(self.config.GET_URL_WAIT_TIME)
+            self.datalog.info('%s: get %s' % (self.body_config['id'], url))
             self.http_request_count += 1
             start_time = time.time()
             r = requests.get(url)
             self.http_request_time += time.time() - start_time
             if r.status_code == 500:
-                self.main.send_mail(
-                    self.main.config.ADMINS,
+                self.send_mail(
+                    self.config.ADMINS,
                     'critical error at oparl-mirror',
                     'url %s throws an http error 500' % url
                 )
@@ -577,14 +597,14 @@ class OparlDownload():
                     return False
         return False
 
-    def get_file(self, url, file_name):
+    def download_file(self, url, file_name):
         try:
             r = requests.get(url, stream=True)
         except SSLError:
             return False
         if r.status_code != 200:
             return False
-        with open(os.path.join(self.main.config.TMP_FILE_DIR, file_name), 'wb') as f:
+        with open(os.path.join(self.config.TMP_FILE_DIR, file_name), 'wb') as f:
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk:
                     f.write(chunk)

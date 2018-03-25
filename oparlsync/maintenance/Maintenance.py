@@ -13,7 +13,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import os
 import sys
 import json
-import minio
 import hashlib
 import threading
 from pymongo import MongoClient
@@ -22,15 +21,22 @@ from geojson import Feature
 import requests
 import subprocess
 from slugify import slugify
-import elasticsearch
 from ..models import *
+from ..base_task import BaseTask
 from ..elasticsearch_import import ElasticsearchImport
 from minio.error import ResponseError
 
 
-class Maintenance():
-    def __init__(self, main):
-        self.main = main
+class Maintenance(BaseTask):
+    name = 'Maintenance'
+    services = [
+        'mongodb',
+        's3',
+        'elasticsearch'
+    ]
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
         self.valid_objects = [
             Body,
             LegislativeTerm,
@@ -79,7 +85,7 @@ class Maintenance():
             self.sitemap_master()
 
     def remove(self, body_id):
-        self.body_config = self.main.get_body_config(body_id)
+        self.body_config = self.get_body_config(body_id)
         body = Body.objects(originalId=self.body_config['url']).first()
         if not body:
             sys.exit('body not found')
@@ -91,13 +97,13 @@ class Maintenance():
         # delete in minio
         try:
             get_name = lambda object: object.object_name
-            names = map(get_name, self.main.s3.list_objects_v2(self.main.config.S3_BUCKET, 'files/%s' % str(body.id),
+            names = map(get_name, self.s3.list_objects_v2(self.config.S3_BUCKET, 'files/%s' % str(body.id),
                                                                recursive=True))
-            for error in self.main.s3.remove_objects(self.main.config.S3_BUCKET, names):
-                self.main.datalog.warn(
+            for error in self.s3.remove_objects(self.config.S3_BUCKET, names):
+                self.datalog.warn(
                     'Critical error deleting file from File %s from Body %s' % (error.object_name, body.id))
         except ResponseError as err:
-            self.main.datalog.warn('Critical error deleting files from Body %s' % body.id)
+            self.datalog.warn('Critical error deleting files from Body %s' % body.id)
 
         body.delete()
 
@@ -108,8 +114,8 @@ class Maintenance():
 
         max_level_overwrite = {}
         min_level_overwrite = {}
-        for region_path in os.listdir(self.main.config.REGION_DIR):
-            with open('%s/%s' % (self.main.config.REGION_DIR, region_path)) as region_file:
+        for region_path in os.listdir(self.config.REGION_DIR):
+            with open('%s/%s' % (self.config.REGION_DIR, region_path)) as region_file:
                 region_data = json.load(region_file)
                 if region_data['active']:# and 'legacy' not in region_data:
                     self.generate_region(region_data)
@@ -165,14 +171,14 @@ class Maintenance():
     def generate_region(self, region_data):
         rgs = region_data['rgs']
         r = requests.get('https://www.openstreetmap.org/api/0.6/relation/%s/full' % region_data['osm_relation'], stream=True)
-        with open(os.path.join(self.main.config.TMP_OSM_DIR, rgs + '.rel'), 'wb') as f:
+        with open(os.path.join(self.config.TMP_OSM_DIR, rgs + '.rel'), 'wb') as f:
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk:
                     f.write(chunk)
         subprocess.call('perl %s < %s > %s' % (
-            self.main.config.REL2POLY_PATH,
-            os.path.join(self.main.config.TMP_OSM_DIR, rgs + '.rel'),
-            os.path.join(self.main.config.TMP_OSM_DIR, rgs + '.poly')
+            self.config.REL2POLY_PATH,
+            os.path.join(self.config.TMP_OSM_DIR, rgs + '.rel'),
+            os.path.join(self.config.TMP_OSM_DIR, rgs + '.poly')
         ), shell=True)
         geojson = {
             'type': 'Feature',
@@ -181,7 +187,7 @@ class Maintenance():
                 'coordinates': [[]]
             }
         }
-        with open(os.path.join(self.main.config.TMP_OSM_DIR, rgs + '.poly')) as poly_file:
+        with open(os.path.join(self.config.TMP_OSM_DIR, rgs + '.poly')) as poly_file:
             lines = poly_file.readlines()
             first = True
             for item in lines:
@@ -244,24 +250,24 @@ class Maintenance():
         return regions
 
     def elasticsearch_regions(self):
-        if not self.main.es.indices.exists_alias(name='region-latest'):
+        if not self.es.indices.exists_alias(name='region-latest'):
             now = datetime.utcnow()
             index_name = 'region-' + now.strftime('%Y%m%d-%H%M')
 
-            es_import = ElasticsearchImport(self.main)
+            es_import = ElasticsearchImport(self)
 
             mapping = es_import.es_mapping_generator(Region, deref='deref_region', delete='delete_region')
             mapping['properties']['body_count'] = {
                 'type': 'integer'
             }
-            self.main.es.indices.create(index=index_name, body={
+            self.es.indices.create(index=index_name, body={
                 'settings': es_import.es_settings(),
                 'mappings': {
                     'region': mapping
                 }
             })
 
-            self.main.es.indices.update_aliases({
+            self.es.indices.update_aliases({
                 'actions': {
                     'add': {
                         'index': index_name,
@@ -271,7 +277,7 @@ class Maintenance():
             })
 
         else:
-            index_name = list(self.main.es.indices.get_alias('region-latest'))[0]
+            index_name = list(self.es.indices.get_alias('region-latest'))[0]
 
         for region in Region.objects():
             region_dict = region.to_dict()
@@ -290,7 +296,7 @@ class Maintenance():
             region_dict['legacy']= bool(region.legacy)
 
 
-            new_doc = self.main.es.index(
+            new_doc = self.es.index(
                 index=index_name,
                 id=str(region.id),
                 doc_type='region',
@@ -324,7 +330,7 @@ class Maintenance():
             self.sync_body(body.uid)
 
     def sync_body(self, body_id):
-        self.body_config = self.main.get_body_config(body_id)
+        self.body_config = self.get_body_config(body_id)
         query = {
             'uid': body_id
         }
@@ -334,11 +340,11 @@ class Maintenance():
                 'rgs': self.body_config['rgs']
             }
         }
-        if self.main.config.ENABLE_PROCESSING:
+        if self.config.ENABLE_PROCESSING:
             region = Region.objects(rgs=self.body_config['rgs']).first()
             if region:
                 object_json['$set']['region'] = region.id
-        self.main.db_raw.body.find_one_and_update(
+        self.db_raw.body.find_one_and_update(
             query,
             object_json,
             upsert=True
@@ -431,7 +437,7 @@ class Maintenance():
             if r.status_code != 200:
                 file.downloaded = False
             else:
-                file_path = os.path.join(self.main.config.TMP_OLD_IMPORT_DIR, str(file.id))
+                file_path = os.path.join(self.config.TMP_OLD_IMPORT_DIR, str(file.id))
                 with open(file_path, 'wb') as file_data:
                     for chunk in r.iter_content(chunk_size=32 * 1024):
                         if chunk:
@@ -444,8 +450,8 @@ class Maintenance():
                 metadata = {
                     'Content-Disposition': 'filename=%s' % file.fileName if file.fileName else str(file.id)
                 }
-                self.main.s3.fput_object(
-                    self.main.config.S3_BUCKET,
+                self.s3.fput_object(
+                    self.config.S3_BUCKET,
                     "files/%s/%s" % (file.body, file.id),
                     file_path,
                     content_type=file.mimeType,
@@ -479,31 +485,31 @@ class Maintenance():
                 'locationOrigin': ''
             }
         }
-        self.main.db_raw.body.update_many(
+        self.db_raw.body.update_many(
             query,
             object_json
         )
-        self.main.db_raw.person.update_many(
+        self.db_raw.person.update_many(
             query,
             object_json
         )
-        self.main.db_raw.organization.update_many(
+        self.db_raw.organization.update_many(
             query,
             object_json
         )
-        self.main.db_raw.meeting.update_many(
+        self.db_raw.meeting.update_many(
             query,
             object_json
         )
-        self.main.db_raw.paper.update_many(
+        self.db_raw.paper.update_many(
             query,
             object_json
         )
-        self.main.db_raw.street.update_many(
+        self.db_raw.street.update_many(
             query,
             object_json
         )
-        self.main.db_raw.street_number.update_many(
+        self.db_raw.street_number.update_many(
             query,
             object_json
         )
@@ -522,7 +528,7 @@ class Maintenance():
                 'georeferencesStatus': ''
             }
         }
-        self.main.db_raw.file.update_many(
+        self.db_raw.file.update_many(
             query,
             object_json
         )
@@ -537,7 +543,7 @@ class Maintenance():
                 'lastSync': ''
             }
         }
-        self.main.db_raw.body.update_many(
+        self.db_raw.body.update_many(
             query,
             object_json
         )
@@ -563,10 +569,10 @@ class Maintenance():
         files = File.objects(legacy=True).no_cache().timeout(False).all()
         for file in files:
             if not file.name and file.downloaded:
-                file_path = os.path.join(self.main.config.TMP_FILE_DIR, str(file.id))
-                self.main.get_file(file, file_path)
-                self.main.s3.remove_object(
-                    self.main.config.S3_BUCKET,
+                file_path = os.path.join(self.config.TMP_FILE_DIR, str(file.id))
+                self.get_file(file, file_path)
+                self.s3.remove_object(
+                    self.config.S3_BUCKET,
                     "files/%s/%s" % (file.body.id, file.id),
                 )
                 if file.fileName:
@@ -583,8 +589,8 @@ class Maintenance():
                     'Content-Disposition': 'filename=%s' % file_name
                 }
                 print('fix file id %s with file name %s' % (file.id, file_name))
-                self.main.s3.fput_object(
-                    self.main.config.S3_BUCKET,
+                self.s3.fput_object(
+                    self.config.S3_BUCKET,
                     "files/%s/%s" % (file.body.id, file.id),
                     file_path,
                     content_type=file.mimeType,
@@ -592,17 +598,17 @@ class Maintenance():
                 )
 
     def sitemap_master(self):
-        meta_sitemap_path = os.path.join(self.main.config.SITEMAP_DIR, 'sitemap.xml')
+        meta_sitemap_path = os.path.join(self.config.SITEMAP_DIR, 'sitemap.xml')
         with open(meta_sitemap_path, 'w') as f:
             f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
             f.write("<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
             for body in Body.objects.all():
                 if not body.legacy:
-                    f.write("  <sitemap><loc>%s/static/sitemap/%s-meeting-0.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
-                f.write("  <sitemap><loc>%s/static/sitemap/%s-paper-0.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
-                f.write("  <sitemap><loc>%s/static/sitemap/%s-file-0.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
+                    f.write("  <sitemap><loc>%s/static/sitemap/%s-meeting-0.xml.gz</loc></sitemap>\n" % (self.config.SITEMAP_BASE_URL, body.id))
+                f.write("  <sitemap><loc>%s/static/sitemap/%s-paper-0.xml.gz</loc></sitemap>\n" % (self.config.SITEMAP_BASE_URL, body.id))
+                f.write("  <sitemap><loc>%s/static/sitemap/%s-file-0.xml.gz</loc></sitemap>\n" % (self.config.SITEMAP_BASE_URL, body.id))
                 if File.objects(body=body.id, deleted__ne=True).count() > 50000:
-                    f.write("  <sitemap><loc>%s/static/sitemap/%s-file-1.xml.gz</loc></sitemap>\n" % (self.main.config.SITEMAP_BASE_URL, body.id))
+                    f.write("  <sitemap><loc>%s/static/sitemap/%s-file-1.xml.gz</loc></sitemap>\n" % (self.config.SITEMAP_BASE_URL, body.id))
             f.write("</sitemapindex>\n")
 
 

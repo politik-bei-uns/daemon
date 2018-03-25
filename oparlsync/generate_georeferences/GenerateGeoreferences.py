@@ -13,20 +13,27 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import re
 import geojson
 import datetime
+from ..base_task import BaseTask
 from ..models import Street, Body, File, Location, StreetNumber, LocationOrigin, Paper
 
 
-class GenerateGeoreferences():
-    def __init__(self, main):
-        self.main = main
+class GenerateGeoreferences(BaseTask):
+    name = 'GenerateGeoreferences'
+    services = [
+        'mongodb'
+    ]
+
+    def __init__(self, body_id):
+        self.body_id = body_id
+        super().__init__()
 
     def __del__(self):
         pass
 
     def run(self, body_id, *args):
-        if not self.main.config.ENABLE_PROCESSING:
+        if not self.config.ENABLE_PROCESSING:
             return
-        self.body_config = self.main.get_body_config(body_id)
+        self.body_config = self.get_body_config(body_id)
         if not self.body_config:
             return
         self.body = Body.objects(uid=body_id).no_cache().first()
@@ -126,7 +133,7 @@ class GenerateGeoreferences():
                         locations = self.check_for_street_numbers(street, text, file.id)
                 # use whole street
                 if not len(locations):
-                    self.main.datalog.debug('Street %s found in File %s' % (street.streetName, file.id))
+                    self.datalog.debug('Street %s found in File %s' % (street.streetName, file.id))
                     locations.append(self.create_location(
                         'street',
                         street.streetName,
@@ -177,7 +184,7 @@ class GenerateGeoreferences():
                                 continue
                     if not do_save:
                         continue
-                    self.main.datalog.debug('Adresse %s %s found in File %s' % (street_number.streetName, street_number.streetNumber, file_id))
+                    self.datalog.debug('Adresse %s %s found in File %s' % (street_number.streetName, street_number.streetNumber, file_id))
                     locations.append(self.create_location(
                         'address',
                         street_number.streetName,
