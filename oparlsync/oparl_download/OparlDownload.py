@@ -62,8 +62,8 @@ class OparlDownload(BaseTask):
         self.body_objects = [
             Organization,
             Person,
-            #Meeting,
-            #Paper
+            Meeting,
+            Paper
         ]
 
         # set s3 files readonly if necessary
@@ -222,8 +222,8 @@ class OparlDownload(BaseTask):
 
         self.organization_list_url = body_raw['organization']
         self.person_list_url = body_raw['person']
-        #self.meeting_list_url = body_raw['meeting']
-        #self.paper_list_url = body_raw['paper']
+        self.meeting_list_url = body_raw['meeting']
+        self.paper_list_url = body_raw['paper']
 
         if self.config.USE_MIRROR and self.last_update and False:
             self.membership_list_url = body_raw['membership']
