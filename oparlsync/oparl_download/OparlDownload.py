@@ -273,9 +273,7 @@ class OparlDownload(BaseTask):
             del object_raw['locationObject']
 
         # Iterate though all Objects and fix stuff (recursive)
-        print('try to save %s %s' % (object.__name__, object_raw['id']))
         for key, value in object_raw.items():
-            print(object_instance._fields.keys())
             if key in object_instance._fields:
                 # List of something
                 if type(object_instance._fields[key]).__name__ == 'ListField':

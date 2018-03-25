@@ -160,16 +160,16 @@ class OparlSync():
     def daemon_start(self, detach_process=True):
         if self.get_daemon_status():
             sys.exit('Daemon already running.')
-        stdout = open(os.path.join(self.config.LOG_DIR, 'output.log'), 'w+')
-        stderr = open(os.path.join(self.config.LOG_DIR, 'error.log'), 'w+')
+        #stdout = open(os.path.join(self.config.LOG_DIR, 'output.log'), 'w+')
+        #stderr = open(os.path.join(self.config.LOG_DIR, 'error.log'), 'w+')
 
         daemon_context = daemon.DaemonContext(
             working_directory=self.config.BASE_DIR,
             umask=0o002,
             pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.config.TMP_DIR, 'app.pid')),
-            detach_process=detach_process,
-            stdout=stdout,
-            stderr=stderr
+            detach_process=detach_process
+            #stdout=stdout,
+            #stderr=stderr
         )
 
         daemon_context.signal_map = {
