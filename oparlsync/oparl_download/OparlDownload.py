@@ -250,7 +250,7 @@ class OparlDownload(BaseTask):
                 if self.config.USE_MIRROR:
                     last_update_tmp = last_update_tmp - datetime.timedelta(weeks=1)
                 object_list = self.get_url_json(
-                    getattr(self, '%s_list_url' % object._object_db_name) + '?modified_since=%s' % last_update_tmp.strftime('%Y-%m-%dT%H-%M-%SZ'),
+                    getattr(self, '%s_list_url' % object._object_db_name) + '?modified_since=%s' % last_update_tmp.strftime('%Y-%m-%dT%H:%M:%SZ'),
                     is_list=True
                 )
             else:
