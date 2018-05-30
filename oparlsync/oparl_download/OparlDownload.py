@@ -598,7 +598,7 @@ class OparlDownload(BaseTask):
     def download_file(self, url, file_name):
         try:
             r = requests.get(url, stream=True)
-        except SSLError:
+        except (SSLError, ConnectionResetError):
             return False
         if r.status_code != 200:
             return False
