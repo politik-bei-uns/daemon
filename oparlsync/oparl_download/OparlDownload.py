@@ -602,8 +602,11 @@ class OparlDownload(BaseTask):
             return False
         if r.status_code != 200:
             return False
-        with open(os.path.join(self.config.TMP_FILE_DIR, file_name), 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
-        return True
+        try:
+            with open(os.path.join(self.config.TMP_FILE_DIR, file_name), 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+            return True
+        except ConnectionResetError:
+            return False
