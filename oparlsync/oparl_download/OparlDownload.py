@@ -574,7 +574,7 @@ class OparlDownload(BaseTask):
             self.datalog.info('%s: get %s' % (self.body_config['id'], url))
             self.http_request_count += 1
             start_time = time.time()
-            r = requests.get(url)
+            r = requests.get(url, timeout=60)
             self.http_request_time += time.time() - start_time
             if r.status_code == 500:
                 self.send_mail(
@@ -597,7 +597,7 @@ class OparlDownload(BaseTask):
 
     def download_file(self, url, file_name):
         try:
-            r = requests.get(url, stream=True)
+            r = requests.get(url, stream=True, timeout=60)
         except (SSLError, ConnectionResetError):
             return False
         if r.status_code != 200:
