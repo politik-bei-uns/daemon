@@ -20,7 +20,8 @@ class MaintenanceBody:
         for body in bodies:
             if body[-4:] == 'json':
                 self.body_config = self.get_body_config(filename=body)
-                self.sync_body(self.body_config['id'])
+                if self.body_config['active']:
+                    self.sync_body(self.body_config['id'])
 
     def sync_body(self, body_id):
         if not self.body_config:
@@ -35,7 +36,7 @@ class MaintenanceBody:
             }
         }
         if self.config.ENABLE_PROCESSING:
-            region = Region.objects(rgs=self.body_config['rgs']).first()
+            region = Region.objects(rgs=self.body_config['rgs'].rstrip('0')).first()
             if region:
                 object_json['$set']['region'] = region.id
         self.db_raw.body.find_one_and_update(
