@@ -26,7 +26,7 @@ class File(Document, OParlDocument):
         ]
     }
 
-    type = 'https://schema.oparl.org/1.0/File'
+    type = 'https://schema.oparl.org/1.1/File'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False, deref_paper=False)
     name = StringField(fulltext=True)
     fileName = StringField()

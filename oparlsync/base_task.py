@@ -22,8 +22,8 @@ import mongoengine
 import subprocess
 from copy import deepcopy
 from minio import Minio
+from minio.error import NoSuchBucketPolicy
 from elasticsearch import Elasticsearch
-from minio.policy import Policy
 from minio.error import (ResponseError, BucketAlreadyOwnedByYou, BucketAlreadyExists, NoSuchKey)
 from urllib3.exceptions import MaxRetryError, ClosedPoolError
 from mongoengine.connection import disconnect as mongoengine_disconnect
@@ -110,10 +110,41 @@ class BaseTask():
                 pass
             except (MaxRetryError, ResponseError) as err:
                 sys.exit('fatal: connection to Minio can\'t be established.')
-            if self.s3.get_bucket_policy(self.config.S3_BUCKET, 'files') != 'readonly':
-                self.s3.set_bucket_policy(self.config.S3_BUCKET, 'files', Policy.READ_ONLY)
-            if self.s3.get_bucket_policy(self.config.S3_BUCKET, 'file-thumbnails') != 'readonly':
-                self.s3.set_bucket_policy(self.config.S3_BUCKET, 'file-thumbnails', Policy.READ_ONLY)
+            # Policies
+            needs_policy_update = False
+            try:
+                policies = json.loads(self.s3.get_bucket_policy(self.config.S3_BUCKET).decode("utf-8") )
+                if self.config.ENABLE_PROCESSING and len(policies['Statement']) == 1:
+                    needs_policy_update = True
+            except NoSuchBucketPolicy:
+                needs_policy_update = True
+            if needs_policy_update:
+                policies =  [
+                    {
+                        'Sid': '',
+                        'Effect': 'Allow',
+                        'Principal': {'AWS': '*'},
+                        'Action': 's3:GetObject',
+                        'Resource': 'arn:aws:s3:::%s/files/*' % self.config.S3_BUCKET
+                    }
+                ]
+                if self.config.ENABLE_PROCESSING:
+                    policies.append(
+                        {
+                            'Sid': '',
+                            'Effect': 'Allow',
+                            'Principal': {'AWS': '*'},
+                            'Action': 's3:GetObject',
+                            'Resource': 'arn:aws:s3:::%s/file-thumbnails/*' % self.config.S3_BUCKET
+                        }
+                    )
+                self.s3.set_bucket_policy(
+                    self.config.S3_BUCKET,
+                    json.dumps({
+                        'Version': '2018-01-01',
+                        'Statement': policies
+                    })
+                )
         self.es = None
         if 'elasticsearch' in self.services:
             self.es = Elasticsearch(

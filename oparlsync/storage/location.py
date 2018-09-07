@@ -16,7 +16,7 @@ from .oparl_document import OParlDocument
 
 
 class Location(Document, OParlDocument):
-    type = 'https://schema.oparl.org/1.0/Location'
+    type = 'https://schema.oparl.org/1.1/Location'
     description = StringField(fulltext=True)
     geojson = DictField(geojson=True, delete_street=True)
     streetAddress = StringField()

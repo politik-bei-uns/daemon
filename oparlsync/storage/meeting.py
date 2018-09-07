@@ -16,7 +16,7 @@ from .oparl_document import OParlDocument
 
 
 class Meeting(Document, OParlDocument):
-    type = 'https://schema.oparl.org/1.0/Meeting'
+    type = 'https://schema.oparl.org/1.1/Meeting'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     name = StringField(fulltext=True)
     meetingState = StringField()

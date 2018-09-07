@@ -16,7 +16,7 @@ from .oparl_document import OParlDocument
 
 
 class Body(Document, OParlDocument):
-    type = 'https://schema.oparl.org/1.0/Body'
+    type = 'https://schema.oparl.org/1.1/Body'
     shortName = StringField()
     name = StringField()
     website = StringField()

@@ -15,7 +15,7 @@ from mongoengine import Document, BooleanField, ReferenceField, DateTimeField, S
 from .oparl_document import OParlDocument
 
 class Consultation(Document, OParlDocument):
-    type = 'https://schema.oparl.org/1.0/Consultation'
+    type = 'https://schema.oparl.org/1.1/Consultation'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     paper = ReferenceField('Paper', dbref=False, deref_paper_location=False)
     agendaItem = ReferenceField('AgendaItem', dbref=False, deref_paper_location=False)
@@ -41,4 +41,4 @@ class Consultation(Document, OParlDocument):
         super(Document, self).__init__(*args, **kwargs)
 
     def __repr__(self):
-        return '<Consultation %r>' % self.name
+        return '<Consultation %r>' % self.id

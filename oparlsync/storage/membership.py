@@ -16,7 +16,7 @@ from .oparl_document import OParlDocument
 
 
 class Membership(Document, OParlDocument):
-    type = 'https://schema.oparl.org/1.0/Membership'
+    type = 'https://schema.oparl.org/1.1/Membership'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     person = ReferenceField('Person', dbref=False, deref_paper_location=False)
     organization = ReferenceField('Organization', dbref=False, deref_paper_location=False)

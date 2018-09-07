@@ -70,6 +70,7 @@ if args[1] == 'queue':
     if args[2] == 'stats':
         oparlsync.queue_stats()
 
+
 if args[1] == 'single':
     if len(args) < 4:
         sys.exit('usage: python manage.py single $module $body $mongoid|$oparlid(optional)')

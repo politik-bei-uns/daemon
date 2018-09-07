@@ -32,5 +32,5 @@ RUN ln -s /usr/bin/pip3 /usr/bin/pip
 #RUN if [ ! -L /usr/bin/pip ]; then ln -s /usr/bin/pip3 /usr/bin/pip; fi
 
 USER webdev
-
+RUN pip install docutils
 RUN pip install -r requirements.txt

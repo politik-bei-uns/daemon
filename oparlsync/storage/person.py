@@ -16,7 +16,7 @@ from .oparl_document import OParlDocument
 
 
 class Person(Document, OParlDocument):
-    type = 'https://schema.oparl.org/1.0/Person'
+    type = 'https://schema.oparl.org/1.1/Person'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     name = StringField(fulltext=True)
     familyName = StringField(fulltext=True)

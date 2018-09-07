@@ -69,11 +69,22 @@ class MongoQueue(object):
             query={
                 "locked_by": {"$ne": None},
                 "locked_at": {
-                    "$lt": datetime.now() - timedelta(self.timeout)}},
+                    "$lt": datetime.now() - timedelta(self.timeout)
+                }
+            },
             update={
                 "$set": {"locked_by": None, "locked_at": None},
-                "$inc": {"attempts": 1}}
+                "$inc": {"attempts": 1}
+            }
         )
+
+    def get_running_externals(self):
+        externals = []
+        for job in self.collection.find():
+            if 'external' in job and job['locked_by'] is not None and job['locked_at'] is not None:
+                if job['external']:
+                    externals.append(job['external'])
+        return externals
 
     def drop_max_attempts(self):
         """
@@ -82,21 +93,35 @@ class MongoQueue(object):
             {"attempts": {"$gte": self.max_attempts}},
             remove=True)
 
-    def put(self, payload, priority=0):
+    def put(self, payload, external=None, priority=0):
         """Place a job into the queue
         """
         job = dict(DEFAULT_INSERT)
         job['priority'] = priority
         job['payload'] = payload
+        job['external'] = external
         return self.collection.insert(job)
 
     def next(self):
+        print(self.get_running_externals())
         return self._wrap_one(self.collection.find_and_modify(
-            query={"locked_by": None,
-                   "locked_at": None,
-                   "attempts": {"$lt": self.max_attempts}},
-            update={"$set": {"locked_by": self.consumer_id,
-                             "locked_at": datetime.now()}},
+            query={
+                "locked_by": None,
+                "locked_at": None,
+                "attempts": {
+                    "$lt": self.max_attempts
+                },
+                "external": {
+                    "$nin": self.get_running_externals()
+                }
+
+            },
+            update={
+                "$set": {
+                    "locked_by": self.consumer_id,
+                    "locked_at": datetime.now()
+                }
+            },
             sort=[('priority', pymongo.DESCENDING)],
             new=1,
             limit=1
@@ -104,10 +129,12 @@ class MongoQueue(object):
 
     def _jobs(self):
         return self.collection.find(
-            query={"locked_by": None,
-                   "locked_at": None,
-                   "attempts": {"$lt": self.max_attempts}},
-            sort=[('priority', pymongo.DESCENDING)],
+            query={
+                "locked_by": None,
+                "locked_at": None,
+                "attempts": {"$lt": self.max_attempts}
+            },
+            sort=[('priority', pymongo.DESCENDING)]
         )
 
     def _wrap_one(self, data):
@@ -214,16 +241,28 @@ class Job(object):
         """Note progress on a long running task.
         """
         return self._queue.collection.find_and_modify(
-            {"_id": self.job_id, "locked_by": self._queue.consumer_id},
-            update={"$set": {"progress": count, "locked_at": datetime.now()}})
+            {
+                "_id": self.job_id,
+                "locked_by": self._queue.consumer_id
+            },
+            update={
+                "$set": {"progress": count, "locked_at": datetime.now()}
+            }
+        )
 
     def release(self):
         """Put the job back into_queue.
         """
         return self._queue.collection.find_and_modify(
-            {"_id": self.job_id, "locked_by": self._queue.consumer_id},
-            update={"$set": {"locked_by": None, "locked_at": None},
-                    "$inc": {"attempts": 1}})
+            {
+                "_id": self.job_id,
+                "locked_by": self._queue.consumer_id
+            },
+            update={
+                "$set": {"locked_by": None, "locked_at": None},
+                "$inc": {"attempts": 1}
+            }
+        )
 
     ## Context Manager support
 

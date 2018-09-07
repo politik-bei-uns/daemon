@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import os
 import sys
 import errno
+import socket
 import signal
 import daemon
 import logging
@@ -21,6 +22,7 @@ import lockfile
 import json
 from copy import deepcopy
 import daemon.pidfile
+from urllib.parse import urlparse
 from multiprocessing import Value
 from setproctitle import setproctitle
 from .config import get_config
@@ -83,29 +85,31 @@ class OparlSync():
             bodies = os.listdir(self.config.BODY_DIR)
             for body in bodies:
                 if body[-4:] == 'json':
-                    body_config = self.get_body_config(filename=body)
-                    if body_config['active'] and 'legacy' not in body_config:
-                        payload = {
-                            'module': module,
-                            'body_id': body_config['id']
-                        }
-                        self.queue_network.put(payload)
+                    self.queue_add_single(module, body)
+
         else:
-            if not os.path.isfile(os.path.join(self.config.BODY_DIR, body_id + '.json')):
-                sys.exit('fatal: body config does not exist')
+            self.queue_add_single(module, body_id + '.json')
+
+    def queue_add_single(self, module, body_file):
+        body_config = self.get_body_config(filename=body_file)
+        if not body_config:
+            sys.exit('body does not exist')
+        if body_config['active'] and 'legacy' not in body_config:
             payload = {
                 'module': module,
-                'body_id': body_id
+                'body_id': body_config['id']
             }
-            self.queue_network.put(payload)
+            kwargs = {}
+            if module == 'oparl_download':
+                url = urlparse(body_config['url'])
+                ip = socket.gethostbyname(url.netloc)
+                if ip:
+                    kwargs['external'] = ip
+            self.queue_network.put(payload, **kwargs)
 
     def queue_clear(self):
         self.init_queue()
         self.queue_network.clear_safe()
-
-    def queue_list(self):
-        self.init_queue()
-        jobs = self.queue_network.next()
 
     def queue_details(self):
         self.init_queue()
@@ -113,7 +117,7 @@ class OparlSync():
         print('| Body ID        | Job                    | Status    |')
         print('|----------------|------------------------|-----------|')
         for job in jobs:
-            print('| %s | %s | %s |' % (job['body_id'], job['module'].ljust(22), job['status'].ljust(8)))
+            print('| %s | %s | %s |' % (job['body_id'], job['module'].ljust(22), job['status'].ljust(9)))
 
     def queue_stats(self):
         self.init_queue()
@@ -160,16 +164,16 @@ class OparlSync():
     def daemon_start(self, detach_process=True):
         if self.get_daemon_status():
             sys.exit('Daemon already running.')
-        #stdout = open(os.path.join(self.config.LOG_DIR, 'output.log'), 'w+')
-        #stderr = open(os.path.join(self.config.LOG_DIR, 'error.log'), 'w+')
+        stdout = open(os.path.join(self.config.LOG_DIR, 'output.log'), 'w+')
+        stderr = open(os.path.join(self.config.LOG_DIR, 'error.log'), 'w+')
 
         daemon_context = daemon.DaemonContext(
             working_directory=self.config.BASE_DIR,
             umask=0o002,
             pidfile=daemon.pidfile.PIDLockFile(os.path.join(self.config.TMP_DIR, 'app.pid')),
-            detach_process=detach_process
-            #stdout=stdout,
-            #stderr=stderr
+            detach_process=detach_process,
+            stdout=stdout,
+            stderr=stderr
         )
 
         daemon_context.signal_map = {
@@ -245,7 +249,7 @@ class OparlSync():
         statuslog_stream_handler.setLevel(logging.DEBUG)
         self.statuslog.addHandler(statuslog_stream_handler)
 
-    def get_body_config(self, body_id=False, filename=False):
+    def get_body_config(self, body_id=None, filename=None):
         if not filename:
             filename = '%s.json' % (body_id)
         try:

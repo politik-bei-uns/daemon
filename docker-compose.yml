@@ -1,74 +1,19 @@
 version: '3'
 services:
-  flask:
-    container_name: politik-bei-uns-flask
-    restart: always
+  politik-bei-uns-daemon:
+    container_name: politik-bei-uns-daemon
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - 5000:5000
     volumes:
       - .:/app
-    depends_on:
-      - elasticsearch
-      - mongodb
-      - minio
     entrypoint: ['sleep', '60000']
-    networks:
-      politk-bei-uns:
-        aliases:
-          - flask
     #entrypoint: ["python3", "manage.py", "daemon", "start-foreground"]
-
-
-  mongodb:
-    image: mongo:3.6
-    container_name: politik-bei-uns-mongodb
-    ports:
-      - 27017:27017
     networks:
-      politk-bei-uns:
+      shared_politk-bei-uns:
         aliases:
-          - mongodb
-
-  minio:
-    image: minio/minio
-    container_name: politik-bei-uns-minio
-    ports:
-      - 9000:9000
-    environment:
-      - MINIO_ACCESS_KEY=DEVELOPMENT
-      - MINIO_SECRET_KEY=DEVELOPMENT
-    networks:
-      politk-bei-uns:
-        aliases:
-          - minio
-    volumes:
-      - data:/data
-    command: server /data
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.2.2
-    container_name: politik-bei-uns-elasticsearch
-    ports:
-      - 9200:9200
-    environment:
-      - cluster.name=docker-cluster
-      - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    networks:
-      politk-bei-uns:
-        aliases:
-          - elasticsearch
+          - daemon
 
 networks:
-  politk-bei-uns:
-    driver: bridge
-
-volumes:
-  data:
+  shared_politk-bei-uns:
+    external: true

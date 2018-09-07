@@ -6,7 +6,8 @@ python-daemon
 minio
 pillow
 osmium
-elasticsearch>=5.0.0,<6.0.0
+elasticsearch
 geojson
+eventlet
 setproctitle
 python-slugify

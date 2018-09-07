@@ -16,7 +16,6 @@ import sys
 import time
 import json
 import pytz
-import minio
 import urllib
 import hashlib
 import datetime
@@ -65,10 +64,6 @@ class OparlDownload(BaseTask):
             Meeting,
             Paper
         ]
-
-        # set s3 files readonly if necessary
-        if self.s3.get_bucket_policy(self.config.S3_BUCKET, "files") != 'readonly':
-            self.s3.set_bucket_policy(self.config.S3_BUCKET, "files", minio.policy.Policy.READ_ONLY)
 
         # statistics
         self.mongodb_request_count = 0
@@ -175,7 +170,7 @@ class OparlDownload(BaseTask):
                 self.save_object(oparl_object, data)
 
     def get_body(self, set_last_sync=True):
-        self.body_uid = False
+        self.body_uid = None
         if self.config.USE_MIRROR:
             body_raw = self.get_url_json(self.config.OPARL_MIRROR_URL + '/body-by-id?id=' + urllib.parse.quote_plus(self.body_config['url']), wait=False)
         else:
@@ -186,7 +181,6 @@ class OparlDownload(BaseTask):
         query = {
             'uid': self.body_config['id']
         }
-
 
         object_json = {
             '$set': {
@@ -203,6 +197,17 @@ class OparlDownload(BaseTask):
                 object_json['$set']['region'] = region.id
         if self.config.USE_MIRROR:
             object_json['$set']['mirrorId'] = body_raw['id']
+        else:
+            # Copy missing values from system object if necessary
+            if not body_raw.get('licence') or not body_raw.get('contactName') or not body_raw.get('contactEmail'):
+                system_raw = self.get_url_json(body_raw['system'])
+                if system_raw.get('licence') and not body_raw.get('licence'):
+                    body_raw['licence'] = system_raw['licence']
+                if system_raw.get('contactName') and not body_raw.get('contactName'):
+                    body_raw['contactName'] = system_raw['contactName']
+                if system_raw.get('contactEmail') and not body_raw.get('contactEmail'):
+                    body_raw['contactEmail'] = system_raw['contactEmail']
+
         self.correct_document_values(object_json['$set'])
         self.mongodb_request_count += 1
         start_time = time.time()
@@ -217,7 +222,7 @@ class OparlDownload(BaseTask):
         if 'lastSync' in result:
             self.last_update = pytz.UTC.localize(result['lastSync']).astimezone(pytz.timezone('Europe/Berlin'))
         else:
-            self.last_update = False
+            self.last_update = None
         self.save_object(Body, body_raw)
 
         self.organization_list_url = body_raw['organization']
@@ -225,13 +230,13 @@ class OparlDownload(BaseTask):
         self.meeting_list_url = body_raw['meeting']
         self.paper_list_url = body_raw['paper']
 
-        if self.config.USE_MIRROR and self.last_update and False:
+        if self.config.USE_MIRROR and self.last_update:
             self.membership_list_url = body_raw['membership']
             self.agenda_item_list_url = body_raw['agendaItem']
             self.consultation_list_url = body_raw['consultation']
             self.location_list_url = body_raw['locationList']
             self.file_list_url = body_raw['file']
-            """
+
             self.body_objects += [
                 Membership,
                 AgendaItem,
@@ -239,7 +244,7 @@ class OparlDownload(BaseTask):
                 File,
                 Location
             ]
-            """
+
 
     def get_list(self, object, list_url=False):
         if list_url:
@@ -574,7 +579,7 @@ class OparlDownload(BaseTask):
             self.datalog.info('%s: get %s' % (self.body_config['id'], url))
             self.http_request_count += 1
             start_time = time.time()
-            r = requests.get(url, timeout=60)
+            r = requests.get(url, timeout=300)
             self.http_request_time += time.time() - start_time
             if r.status_code == 500:
                 self.send_mail(
@@ -582,7 +587,7 @@ class OparlDownload(BaseTask):
                     'critical error at oparl-mirror',
                     'url %s throws an http error 500' % url
                 )
-                return False
+                return None
             elif r.status_code == 200:
                 try:
                     if not is_list:
@@ -592,12 +597,12 @@ class OparlDownload(BaseTask):
                         if 'data' in list_data and 'links' in list_data:
                             return list_data
                 except json.decoder.JSONDecodeError:
-                    return False
-        return False
+                    return None
+        return None
 
     def download_file(self, url, file_name):
         try:
-            r = requests.get(url, stream=True, timeout=60)
+            r = requests.get(url, stream=True, timeout=300)
         except (SSLError, ConnectionResetError):
             return False
         if r.status_code != 200:
