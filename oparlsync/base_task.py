@@ -102,12 +102,8 @@ class BaseTask():
                             secret_key=self.config.S3_SECRET_KEY,
                             secure=self.config.S3_SECURE)
             try:
-                self.s3.make_bucket(self.config.S3_BUCKET,
-                                    location=self.config.S3_LOCATION)
-            except BucketAlreadyOwnedByYou as err:
-                pass
-            except BucketAlreadyExists as err:
-                pass
+                if self.s3.bucket_exists(self.config.S3_BUCKET):
+                    self.s3.make_bucket(self.config.S3_BUCKET, location=self.config.S3_LOCATION)
             except (MaxRetryError, ResponseError) as err:
                 sys.exit('fatal: connection to Minio can\'t be established.')
             # Policies
