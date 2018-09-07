@@ -21,6 +21,11 @@ from ..base_task import BaseTask
 
 
 class StreetImport(BaseTask):
+    name = 'StreetImport'
+    services = [
+        'mongodb'
+    ]
+
     def __init__(self, body_id):
         self.body_id = body_id
         super().__init__()
