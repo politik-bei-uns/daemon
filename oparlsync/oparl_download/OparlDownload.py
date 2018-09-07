@@ -31,6 +31,7 @@ from bson.objectid import ObjectId
 from minio.error import ResponseError, SignatureDoesNotMatch
 from mongoengine.errors import ValidationError
 from pymongo.errors import ServerSelectionTimeoutError
+from requests.exceptions import ChunkedEncodingError
 
 
 class OparlDownload(BaseTask):
@@ -609,9 +610,12 @@ class OparlDownload(BaseTask):
             return False
         try:
             with open(os.path.join(self.config.TMP_FILE_DIR, file_name), 'wb') as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-            return True
+                try:
+                    for chunk in r.iter_content(chunk_size=1024):
+                        if chunk:
+                            f.write(chunk)
+                except ChunkedEncodingError:
+                    return True
+                return True
         except ConnectionResetError:
             return False
