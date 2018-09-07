@@ -54,7 +54,7 @@ class MaintenanceRegion:
             rgs = parent_region.rgs
 
             parent_region.body = []
-            for body in Body.objects(rgs=rgs).all():
+            for body in Body.objects(rgs=rgs.ljust(12, '0')).all():
                 parent_region.body.append(body.id)
             parent_region.save()
 
