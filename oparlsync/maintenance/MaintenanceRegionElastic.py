@@ -63,7 +63,6 @@ class MaintenanceRegionElastic:
             del region_dict['bounds']
             region_dict['legacy']= bool(region.legacy)
 
-
             new_doc = self.es.index(
                 index=index_name,
                 id=str(region.id),

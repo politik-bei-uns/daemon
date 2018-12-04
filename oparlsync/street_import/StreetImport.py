@@ -199,7 +199,7 @@ class StreetImport(BaseTask):
 
             # validate geojson
             geojson_check = Feature(geometry=street['street']['geometry'])
-            if geojson_check.is_valid:
+            if geojson_check.is_valid and street['street']['geometry']['coordinates']:
                 street_obj.geojson = street['street']
             else:
                 self.datalog.warn('invalid location found: %s' % json.dumps(street['street']['geometry']))
@@ -221,7 +221,7 @@ class StreetImport(BaseTask):
                     street_number['properties']['locality'] = self.region.name
                 # validate geojson
                 geojson_check = Feature(geometry=street_number['geometry'])
-                if geojson_check.is_valid:
+                if geojson_check.is_valid and street_number['street']['geometry']['coordinates']:
                     street_number_obj.geojson = street_number
                 else:
                     self.datalog.warn('invalid location found: %s' % json.dumps(street_number['geometry']))

@@ -19,14 +19,14 @@ from geojson import Feature
 
 
 class MaintenanceRegion:
-    def generate_regions(self):
+    def generate_regions(self, update_geojson=True):
         max_level_overwrite = {}
         min_level_overwrite = {}
         for region_path in os.listdir(self.config.REGION_DIR):
             with open('%s/%s' % (self.config.REGION_DIR, region_path)) as region_file:
                 region_data = json.load(region_file)
                 if region_data['active']:# and 'legacy' not in region_data:
-                    self.generate_region(region_data)
+                    self.generate_region(region_data, update_geojson)
                     if 'osm_level_max' in region_data:
                         max_level_overwrite[region_data['rgs']] = region_data['osm_level_max']
                     if 'osm_level_min' in region_data:
@@ -74,66 +74,65 @@ class MaintenanceRegion:
         option.value = json.dumps(regions)
         option.save()
 
-    def generate_region(self, region_data):
-        rgs = region_data['rgs']
-        r = requests.get('https://www.openstreetmap.org/api/0.6/relation/%s/full' % region_data['osm_relation'], stream=True)
-        with open(os.path.join(self.config.TMP_OSM_DIR, rgs + '.rel'), 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
-        subprocess.call('perl %s < %s > %s' % (
-            self.config.REL2POLY_PATH,
-            os.path.join(self.config.TMP_OSM_DIR, rgs + '.rel'),
-            os.path.join(self.config.TMP_OSM_DIR, rgs + '.poly')
-        ), shell=True)
-        geojson = {
-            'type': 'Feature',
-            'geometry': {
-                'type': 'Polygon',
-                'coordinates': [[]]
-            }
+    def generate_region(self, region_data, update_geojson=True):
+
+        kwargs = {
+            'set__name': region_data['name'],
+            'set__level': region_data['osm_level'],
+            'set__rgs': region_data['rgs'],
+            'set__legacy': 'legacy' in region_data.get('legacy', False),
+            'upsert': True
         }
-        with open(os.path.join(self.config.TMP_OSM_DIR, rgs + '.poly')) as poly_file:
-            lines = poly_file.readlines()
-            first = True
-            for item in lines:
-                data = item.split()
-                if len(data) == 2:
-                    if first:
-                        first = False
-                        bounds = [
-                            [float(data[0]), float(data[1])],
-                            [float(data[0]), float(data[1])]
-                        ]
-                    if bounds[0][0] > float(data[0]):
-                        bounds[0][0] = float(data[0])
-                    if bounds[0][1] < float(data[1]):
-                        bounds[0][1] = float(data[1])
-                    if bounds[1][0] < float(data[0]):
-                        bounds[1][0] = float(data[0])
-                    if bounds[1][1] > float(data[1]):
-                        bounds[1][1] = float(data[1])
-                    geojson['geometry']['coordinates'][0].append([float(data[0]), float(data[1])])
-        geojson_check = Feature(geometry=geojson['geometry'])
-        geojson['properties'] = {
-            'name': region_data['name'],
-            'level': region_data['osm_level'],
-            'rgs': region_data['rgs']
-        }
-        if geojson_check.is_valid:
-            kwargs = {
-                'set__name': region_data['name'],
-                'set__level': region_data['osm_level'],
-                'set__rgs': region_data['rgs'],
-                'set__bounds': bounds,
-                'set__geojson': geojson,
-                'set__legacy': 'legacy' in region_data,
-                'upsert': True
+        if update_geojson:
+            rgs = region_data['rgs']
+            r = requests.get('https://www.openstreetmap.org/api/0.6/relation/%s/full' % region_data['osm_relation'], stream=True)
+            with open(os.path.join(self.config.TMP_OSM_DIR, rgs + '.rel'), 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+            subprocess.call('perl %s < %s > %s' % (
+                self.config.REL2POLY_PATH,
+                os.path.join(self.config.TMP_OSM_DIR, rgs + '.rel'),
+                os.path.join(self.config.TMP_OSM_DIR, rgs + '.poly')
+            ), shell=True)
+            geojson = {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': [[]]
+                }
             }
-            if 'legacy' in region_data:
-                if region_data['legacy']:
-                    kwargs['legacy'] = True
-            Region.objects(rgs=region_data['rgs']).update_one(**kwargs)
+            with open(os.path.join(self.config.TMP_OSM_DIR, rgs + '.poly')) as poly_file:
+                lines = poly_file.readlines()
+                first = True
+                for item in lines:
+                    data = item.split()
+                    if len(data) == 2:
+                        if first:
+                            first = False
+                            bounds = [
+                                [float(data[0]), float(data[1])],
+                                [float(data[0]), float(data[1])]
+                            ]
+                        if bounds[0][0] > float(data[0]):
+                            bounds[0][0] = float(data[0])
+                        if bounds[0][1] < float(data[1]):
+                            bounds[0][1] = float(data[1])
+                        if bounds[1][0] < float(data[0]):
+                            bounds[1][0] = float(data[0])
+                        if bounds[1][1] > float(data[1]):
+                            bounds[1][1] = float(data[1])
+                        geojson['geometry']['coordinates'][0].append([float(data[0]), float(data[1])])
+            geojson_check = Feature(geometry=geojson['geometry'])
+            geojson['properties'] = {
+                'name': region_data['name'],
+                'level': region_data['osm_level'],
+                'rgs': region_data['rgs']
+            }
+            if geojson_check.is_valid:
+                kwargs['set__bounds'] = bounds
+                kwargs['set__geojson'] = geojson
+        Region.objects(rgs=region_data['rgs']).update_one(**kwargs)
 
     def region_get_children(self, region_id):
         regions = []

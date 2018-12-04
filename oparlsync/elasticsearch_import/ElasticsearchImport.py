@@ -49,7 +49,6 @@ class ElasticsearchImport(BaseTask):
         self.es = None
 
     def street_index(self):
-
         if not self.es.indices.exists_alias(name='street-latest'):
             now = datetime.utcnow()
             index_name = 'street-' + now.strftime('%Y%m%d-%H%M')
@@ -118,13 +117,15 @@ class ElasticsearchImport(BaseTask):
                     street_dict['autocomplete'] += ' (' + street_dict['subLocality'][0] + ')'
 
             street_dict['legacy'] = bool(street.region.legacy)
-
-            new_doc = self.es.index(
-                index=index_name,
-                id=str(street.id),
-                doc_type='street',
-                body=street_dict
-            )
+            try:
+                new_doc = self.es.index(
+                    index=index_name,
+                    id=str(street.id),
+                    doc_type='street',
+                    body=street_dict
+                )
+            except:
+                continue
 
             if new_doc['result'] in ['created', 'updated']:
                 self.statistics[new_doc['result']] += 1
@@ -133,9 +134,7 @@ class ElasticsearchImport(BaseTask):
         self.datalog.info('ElasticSearch street import successfull: %s created, %s updated' % (
             self.statistics['created'], self.statistics['updated']))
 
-
     def paper_index(self):
-
         if not self.es.indices.exists_alias(name='paper-latest'):
             now = datetime.utcnow()
             index_name = 'paper-' + now.strftime('%Y%m%d-%H%M')
@@ -144,7 +143,6 @@ class ElasticsearchImport(BaseTask):
             mapping['properties']['region'] = {
                 'type': 'text'
             }
-
 
             self.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
@@ -164,7 +162,6 @@ class ElasticsearchImport(BaseTask):
 
         else:
             index_name = list(self.es.indices.get_alias('paper-latest'))[0]
-
 
         regions = []
         region = self.body.region
@@ -200,7 +197,6 @@ class ElasticsearchImport(BaseTask):
             self.statistics['created'], self.statistics['updated']))
 
     def paper_location_index(self):
-
         if not self.es.indices.exists_alias(name='paper-location-latest'):
             now = datetime.utcnow()
             index_name = 'paper-location-' + now.strftime('%Y%m%d-%H%M')
@@ -298,8 +294,7 @@ class ElasticsearchImport(BaseTask):
             if base_object._fields[field].__class__.__name__ == 'ListField':
                 if base_object._fields[field].field.__class__.__name__ == 'ReferenceField':
                     if getattr(base_object._fields[field].field, deref):
-                        mapping[field] = self.es_mapping_generator(base_object._fields[field].field.document_type,
-                                                                   deref, True)
+                        mapping[field] = self.es_mapping_generator(base_object._fields[field].field.document_type, deref, True)
                     else:
                         mapping[field] = self.es_mapping_field_object()
                 else:
@@ -350,10 +345,7 @@ class ElasticsearchImport(BaseTask):
             result['fields'] = {}
             result['type'] = 'text'
             if hasattr(field, 'fulltext'):
-#                result['index'] = 'analyzed'
                 result['analyzer'] = 'default_analyzer'
-#            else:
-#                result['index'] = 'not_analyzed'
             if hasattr(field, 'sortable'):
                 result['fields']['sort'] = {
                     'type': 'text',

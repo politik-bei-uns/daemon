@@ -1,0 +1,10 @@
+{
+  "id": "051660024024-1",
+  "rgs": "051660024024",
+  "url": "https://ris.schwalmtal.de/webservice/oparl/v1/body/1",
+  "force_full_sync": 1,
+  "active": true,
+  "osm_relation": "88529",
+  "geofabrik_package": "/europe/germany/nordrhein-westfalen/duesseldorf-regbez-latest.osm.bz2",
+  "name": "Schwalmtal"
+}
