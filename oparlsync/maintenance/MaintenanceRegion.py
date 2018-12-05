@@ -80,7 +80,7 @@ class MaintenanceRegion:
             'set__name': region_data['name'],
             'set__level': region_data['osm_level'],
             'set__rgs': region_data['rgs'],
-            'set__legacy': 'legacy' in region_data.get('legacy', False),
+            'set__legacy': region_data.get('legacy', False),
             'upsert': True
         }
         if update_geojson:
