@@ -171,7 +171,6 @@ class StreetImport(BaseTask):
                         continue
                     base_address['geometry']['coordinates'][0].append(osm.nodes[point])
 
-
             if address['number'] in streets[address['name']]['numbers'] and base_address['geometry']['type'] == 'Point':
                 continue
             if address['number'] in streets[address['name']]['numbers'] and streets[address['name']]['numbers'][address['number']]['geometry']['type'] == 'Polygon' and base_address['geometry']['type'] != 'Point':
@@ -204,7 +203,11 @@ class StreetImport(BaseTask):
             else:
                 self.datalog.warn('invalid location found: %s' % json.dumps(street['street']['geometry']))
             for street_number_name, street_number in street['numbers'].items():
-                street_number_obj = StreetNumber.objects(region=self.region, streetName = street_number['properties']['name'], streetNumber=street_number['properties']['number']).first()
+                street_number_obj = StreetNumber.objects(
+                    region=self.region,
+                    streetName=street_number['properties']['name'],
+                    streetNumber=street_number['properties']['number']
+                ).first()
                 if not street_number_obj:
                     street_number_obj = StreetNumber()
                     street_number_obj.region = self.region
@@ -221,7 +224,7 @@ class StreetImport(BaseTask):
                     street_number['properties']['locality'] = self.region.name
                 # validate geojson
                 geojson_check = Feature(geometry=street_number['geometry'])
-                if geojson_check.is_valid and street_number['street']['geometry']['coordinates']:
+                if geojson_check.is_valid and street_number['geometry']['coordinates']:
                     street_number_obj.geojson = street_number
                 else:
                     self.datalog.warn('invalid location found: %s' % json.dumps(street_number['geometry']))
