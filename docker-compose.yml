@@ -10,10 +10,10 @@ services:
     entrypoint: ['sleep', '60000']
     #entrypoint: ["python3", "manage.py", "daemon", "start-foreground"]
     networks:
-      shared_politk-bei-uns:
+      shared_politik-bei-uns:
         aliases:
           - daemon
 
 networks:
-  shared_politk-bei-uns:
+  shared_politik-bei-uns:
     external: true
