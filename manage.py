@@ -29,7 +29,7 @@ daemon_action = ['start', 'start-foreground', 'stop', 'status']
 
 if args[1] == 'daemon':
     if len(args) < 3:
-        sys.exit('usage: puthon manage.py queue %s' % '|'.join(daemon_action))
+        sys.exit('usage: python manage.py queue %s' % '|'.join(daemon_action))
 
     if args[2] not in daemon_action:
         sys.exit('fatal: action should be one of %s' % '|'.join(daemon_action))
@@ -50,7 +50,7 @@ queue_action = ['add', 'clear', 'list', 'stats']
 
 if args[1] == 'queue':
     if len(args) < 3:
-        sys.exit('usage: puthon manage.py queue %s' % '|'.join(queue_action))
+        sys.exit('usage: python manage.py queue %s' % '|'.join(queue_action))
 
     if args[2] not in queue_action:
         sys.exit('fatal: action should be one of %s' % '|'.join(queue_action))
