@@ -24,7 +24,6 @@ class ElasticsearchImport(BaseTask):
         'elasticsearch'
     ]
 
-
     def __init__(self, body_id):
         self.body_id = body_id
         super().__init__()
@@ -64,12 +63,9 @@ class ElasticsearchImport(BaseTask):
                 'type': 'boolean'
             }
 
-
             self.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
-                'mappings': {
-                    'street': mapping
-                }
+                'mappings':  mapping
             })
 
             self.es.indices.update_aliases({
@@ -121,7 +117,6 @@ class ElasticsearchImport(BaseTask):
                 new_doc = self.es.index(
                     index=index_name,
                     id=str(street.id),
-                    doc_type='street',
                     body=street_dict
                 )
             except:
@@ -146,9 +141,7 @@ class ElasticsearchImport(BaseTask):
 
             self.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
-                'mappings': {
-                    'paper': mapping
-                }
+                'mappings': mapping
             })
 
             self.es.indices.update_aliases({
@@ -174,7 +167,6 @@ class ElasticsearchImport(BaseTask):
                 self.es.delete(
                     index=index_name,
                     id=str(paper.id),
-                    doc_type='paper',
                     ignore=[400, 404]
                 )
                 continue
@@ -186,7 +178,6 @@ class ElasticsearchImport(BaseTask):
             new_doc = self.es.index(
                 index=index_name,
                 id=str(paper.id),
-                doc_type='paper',
                 body=paper_dict
             )
             if new_doc['result'] in ['created', 'updated']:
@@ -211,9 +202,7 @@ class ElasticsearchImport(BaseTask):
 
             self.es.indices.create(index=index_name, body={
                 'settings': self.es_settings(),
-                'mappings': {
-                    'location': mapping
-                }
+                'mappings': mapping
             })
 
             self.es.indices.update_aliases({
@@ -239,7 +228,6 @@ class ElasticsearchImport(BaseTask):
                 self.es.delete(
                     index=index_name,
                     id=str(location.id),
-                    doc_type='location',
                     ignore=[400, 404]
                 )
                 continue
@@ -275,7 +263,6 @@ class ElasticsearchImport(BaseTask):
             new_doc = self.es.index(
                 index=index_name,
                 id=str(location.id),
-                doc_type='location',
                 body=location_dict
             )
             if new_doc['result'] in ['created', 'updated']:
@@ -344,6 +331,7 @@ class ElasticsearchImport(BaseTask):
         elif field.__class__.__name__ == 'StringField':
             result['fields'] = {}
             result['type'] = 'text'
+            result['fielddata'] = True
             if hasattr(field, 'fulltext'):
                 result['analyzer'] = 'default_analyzer'
             if hasattr(field, 'sortable'):
@@ -414,7 +402,6 @@ class ElasticsearchImport(BaseTask):
                             'type': 'custom',
                             'tokenizer': 'standard',
                             'filter': [
-                                'standard',
                                 'lowercase',
                                 'custom_stop',
                                 'german_stop',

@@ -1,0 +1,9 @@
+active: true
+country: DE
+geocoding: false
+geofabrik_package: /europe/germany/mecklenburg-vorpommern-latest.osm.bz2
+id: DE-130760000000
+name: Landkreis Ludwigslust-Parchim
+osm_level: 6
+osm_relation: '1739381'
+rgs: '130760000000'

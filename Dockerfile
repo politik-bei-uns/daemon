@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 LABEL maintainer "Ernesto Ruge <mail@ernestoruge.de>"
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
@@ -11,13 +11,14 @@ RUN apt-get update && \
     locale-gen en_US en_US.UTF-8 && \
     echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' > /etc/default/locale  && \
     apt-get dist-upgrade -y && \
-    apt-get install -y apt-utils python3 python3-pip python3-dev build-essential python3-venv libboost-python-dev\
-    libbz2-dev zlib1g-dev iputils-ping curl telnet ghostscript poppler-utils jpegoptim abiword openjdk-9-jre-headless psmisc && \
+    apt-get install -y apt-utils python3 python3-pip python3-dev build-essential python3-venv libboost-python-dev \
+    libbz2-dev zlib1g-dev iputils-ping curl telnet ghostscript poppler-utils jpegoptim abiword openjdk-11-jre-headless \
+    psmisc && \
     apt-get autoremove -y && \
     apt-get clean
 
-RUN groupadd -g 1001 webdev
-RUN useradd -u 1001 -g webdev -m -d /home/webdev -s /bin/bash webdev
+RUN groupadd -g 1002 webdev
+RUN useradd -u 1002 -g webdev -m -d /home/webdev -s /bin/bash webdev
 
 ENV HOME /home/webdev
 
@@ -25,11 +26,8 @@ RUN mkdir /app
 WORKDIR /app
 COPY . /app
 
-RUN rm /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
+RUN rm -rf /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/pip3 /usr/bin/pip
-
-#RUN if [ ! -L /usr/bin/python ]; then ln -s /usr/bin/python3 /usr/bin/python; fi
-#RUN if [ ! -L /usr/bin/pip ]; then ln -s /usr/bin/pip3 /usr/bin/pip; fi
 
 USER webdev
 RUN pip install docutils

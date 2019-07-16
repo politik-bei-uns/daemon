@@ -1,0 +1,9 @@
+active: true
+country: DE
+geofabrik_package: /europe/germany/berlin-latest.osm.bz2
+id: DE-110050005005
+legacy: true
+name: Berlin Spandau
+osm_level: 9
+osm_relation: '16343'
+rgs: '110050005005'

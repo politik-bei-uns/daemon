@@ -30,9 +30,7 @@ class MaintenanceRegionElastic:
             }
             self.es.indices.create(index=index_name, body={
                 'settings': es_import.es_settings(),
-                'mappings': {
-                    'region': mapping
-                }
+                'mappings':  mapping
             })
 
             self.es.indices.update_aliases({
@@ -48,24 +46,23 @@ class MaintenanceRegionElastic:
             index_name = list(self.es.indices.get_alias('region-latest'))[0]
 
         for region in Region.objects():
+            print(region.name)
             region_dict = region.to_dict()
             region_dict['geosearch'] = {
                 'type': 'envelope',
                 'coordinates': region_dict['bounds']
             }
+            region_dict['body_count'] = len(region.body)
+            region_dict['legacy'] = bool(region.legacy)
+
             region_dict['geojson']['properties']['legacy'] = region.legacy
             region_dict['geojson']['properties']['bodies'] = []
-            region_dict['body_count'] = len(region.body)
             for body in region.body:
                 region_dict['geojson']['properties']['bodies'].append(str(body.id))
-
             region_dict['geojson'] = json.dumps(region_dict['geojson'])
             del region_dict['bounds']
-            region_dict['legacy']= bool(region.legacy)
-
-            new_doc = self.es.index(
+            self.es.index(
                 index=index_name,
                 id=str(region.id),
-                doc_type='region',
                 body=region_dict
             )

@@ -12,6 +12,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 import os
 import sys
+import yaml
 import errno
 import socket
 import signal
@@ -19,7 +20,7 @@ import daemon
 import logging
 import pymongo
 import lockfile
-import json
+from logging.handlers import WatchedFileHandler
 from copy import deepcopy
 import daemon.pidfile
 from urllib.parse import urlparse
@@ -60,11 +61,8 @@ class OparlSync():
         "id": "",
         "rgs": "",
         "url": "",
-        "force_full_sync": 0,
         "wait_time": 0.2,
-        "geofabrik_package": False,
-        "osm_relation": False,
-        "name": False
+        "name": None
     }
 
     def __init__(self):
@@ -84,11 +82,11 @@ class OparlSync():
         if body_id == 'all':
             bodies = os.listdir(self.config.BODY_DIR)
             for body in bodies:
-                if body[-4:] == 'json':
-                    self.queue_add_single(module, body)
-
+                if body[-4:] != '.yml':
+                    continue
+                self.queue_add_single(module, body)
         else:
-            self.queue_add_single(module, body_id + '.json')
+            self.queue_add_single(module, self.get_body_config_file(body_id))
 
     def queue_add_single(self, module, body_file):
         body_config = self.get_body_config(filename=body_file)
@@ -156,7 +154,7 @@ class OparlSync():
 
     def daemon_status(self):
         status = self.get_daemon_status()
-        if status == False:
+        if status is False:
             print('Daemon not running.')
         else:
             print('Daemon running with pid %s.' % status)
@@ -184,7 +182,7 @@ class OparlSync():
         }
 
         self.statuslog.info('Starting daemon ...')
-        setproctitle('%s: master ' % (self.config.PROJECT_NAME))
+        setproctitle('%s: master ' % self.config.PROJECT_NAME)
         try:
             with daemon_context:
                 self.init_queue()
@@ -204,7 +202,6 @@ class OparlSync():
 
         except lockfile.AlreadyLocked:
             self.statuslog.info('Daemon already running.')
-
 
     def program_cleanup(self, signal, frame):
         self.statuslog.info("\nShutting down (this will take some time!) ...")
@@ -235,7 +232,7 @@ class OparlSync():
     def init_statuslog(self):
         self.statuslog = logging.getLogger('statuslog')
         self.statuslog.setLevel(logging.DEBUG)
-        statuslog_file_handler = logging.FileHandler("%s/main-status.log" % (self.config.LOG_DIR))
+        statuslog_file_handler = WatchedFileHandler("%s/main-status.log" % (self.config.LOG_DIR))
         statuslog_file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s ')
         )
@@ -251,17 +248,29 @@ class OparlSync():
 
     def get_body_config(self, body_id=None, filename=None):
         if not filename:
-            filename = '%s.json' % (body_id)
+            filename = self.get_body_config_file(body_id)
         try:
             with open('%s/%s' % (self.config.BODY_DIR, filename)) as body_config_file:
                 if not body_config_file:
                     return False
                 try:
                     body_config = deepcopy(self.default_config)
-                    body_config.update(json.load(body_config_file))
+                    body_config.update(yaml.load(body_config_file, Loader=yaml.SafeLoader))
+                    if not body_config.get('active'):
+                        return None
+                    if self.config.BODY_LIST_MODE == 'blacklist':
+                        if body_config.get('id') in self.config.BODY_LIST:
+                            return None
+                    else:
+                        if body_config.get('id') not in self.config.BODY_LIST:
+                            return None
                     return body_config
                 except ValueError:
-                    return False
+                    return None
         except FileNotFoundError:
-            return False
+            return None
 
+    def get_body_config_file(self, body_id):
+        for filename in os.listdir(self.config.BODY_DIR):
+            if filename.startswith('DE-%s' % body_id):
+                return filename

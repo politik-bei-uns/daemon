@@ -19,12 +19,11 @@ from .MaintenanceRegion import MaintenanceRegion
 from .MaintenanceRegionElastic import MaintenanceRegionElastic
 from .MaintenanceSitemap import MaintenanceSitemap
 from .MaintenanceBody import MaintenanceBody
-from .MaintenanceOld import MaintenanceOld
 from .MaintenanceGeo import MaintenanceGeo
 
 
-class Maintenance(BaseTask, MaintenanceRemove, MaintenanceRegion, MaintenanceRegionElastic, MaintenanceSitemap, \
-                  MaintenanceBody, MaintenanceGeo, MaintenanceOld):
+class Maintenance(BaseTask, MaintenanceRemove, MaintenanceRegion, MaintenanceRegionElastic, MaintenanceSitemap,
+                  MaintenanceBody, MaintenanceGeo):
     name = 'Maintenance'
     services = [
         'mongodb',

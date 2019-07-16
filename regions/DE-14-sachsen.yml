@@ -1,0 +1,8 @@
+active: true
+country: DE
+geofabrik_package: /europe/germany/sachsen-latest.osm.bz2
+id: DE-14
+name: Sachsen
+osm_level: 4
+osm_relation: '62467'
+rgs: '14'

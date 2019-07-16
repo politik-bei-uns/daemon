@@ -11,6 +11,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 """
 
 import os
+import yaml
 import json
 import requests
 import subprocess
@@ -24,13 +25,20 @@ class MaintenanceRegion:
         min_level_overwrite = {}
         for region_path in os.listdir(self.config.REGION_DIR):
             with open('%s/%s' % (self.config.REGION_DIR, region_path)) as region_file:
-                region_data = json.load(region_file)
-                if region_data['active']:# and 'legacy' not in region_data:
-                    self.generate_region(region_data, update_geojson)
-                    if 'osm_level_max' in region_data:
-                        max_level_overwrite[region_data['rgs']] = region_data['osm_level_max']
-                    if 'osm_level_min' in region_data:
-                        min_level_overwrite[region_data['rgs']] = region_data['osm_level_min']
+                region_data = yaml.load(region_file, Loader=yaml.SafeLoader)
+                if not region_data['active']:
+                    continue
+                if self.config.REGION_LIST_MODE == 'blacklist':
+                    if region_data.get('id') in self.config.REGION_LIST:
+                        continue
+                else:
+                    if region_data.get('id') not in self.config.REGION_LIST:
+                        continue
+                self.generate_region(region_data, update_geojson)
+                if 'osm_level_max' in region_data:
+                    max_level_overwrite[region_data['rgs']] = region_data['osm_level_max']
+                if 'osm_level_min' in region_data:
+                    min_level_overwrite[region_data['rgs']] = region_data['osm_level_min']
 
         for parent_region in Region.objects.order_by('level').all():
             next_level = 10
@@ -75,7 +83,6 @@ class MaintenanceRegion:
         option.save()
 
     def generate_region(self, region_data, update_geojson=True):
-
         kwargs = {
             'set__name': region_data['name'],
             'set__level': region_data['osm_level'],

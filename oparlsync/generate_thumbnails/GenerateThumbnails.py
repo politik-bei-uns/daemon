@@ -26,6 +26,7 @@ class GenerateThumbnails(BaseTask):
         'mongodb',
         's3'
     ]
+
     def __init__(self, body_id):
         self.body_id = body_id
         super().__init__()

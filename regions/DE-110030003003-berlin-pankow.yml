@@ -1,0 +1,9 @@
+active: true
+country: DE
+geofabrik_package: /europe/germany/berlin-latest.osm.bz2
+id: DE-110030003003
+legacy: true
+name: Berlin Pankow
+osm_level: 9
+osm_relation: '164723'
+rgs: '110030003003'

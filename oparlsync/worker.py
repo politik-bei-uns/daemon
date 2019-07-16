@@ -56,8 +56,6 @@ class Worker(Process):
         self.do_shutdown = do_shutdown
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-
-
     def run(self):
         self.tick = 0
         self.load_config()
@@ -114,7 +112,6 @@ class Worker(Process):
     def graceful_shutdown(self):
         print("Shutdown of %s complete!" % self.process_name)
 
-
     def init_queue(self):
         try:
             db_raw_client = pymongo.MongoClient(
@@ -134,7 +131,6 @@ class Worker(Process):
             max_attempts=3
         )
 
-
     def add_next_to_queue(self, current_module, body_id):
         if current_module in self.next_job.keys():
             for next_module in self.next_job[current_module]:
@@ -143,7 +139,6 @@ class Worker(Process):
                     'body_id': body_id
                 }
                 self.queue_network.put(payload)
-
 
     def load_config(self):
         self.config = get_config(os.getenv('APPLICATION_MODE', 'DEVELOPMENT'))()
@@ -164,7 +159,6 @@ class Worker(Process):
         )
         statuslog_stream_handler.setLevel(logging.DEBUG)
         self.statuslog.addHandler(statuslog_stream_handler)
-
 
     def send_mail(self, receivers=None, subject='', body=''):
         smtp = smtplib.SMTP(

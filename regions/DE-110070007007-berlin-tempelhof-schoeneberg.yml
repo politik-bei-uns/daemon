@@ -1,0 +1,9 @@
+active: true
+country: DE
+geofabrik_package: /europe/germany/berlin-latest.osm.bz2
+id: DE-110070007007
+legacy: true
+name: "Berlin Tempelhof-Sch\xF6neberg"
+osm_level: 9
+osm_relation: '158437'
+rgs: '110070007007'

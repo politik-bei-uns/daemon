@@ -11,3 +11,4 @@ geojson
 eventlet
 setproctitle
 python-slugify
+PyYAML

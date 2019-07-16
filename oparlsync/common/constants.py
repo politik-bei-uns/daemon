@@ -13,11 +13,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import os
 
 
-class DefaultConfig(object):
-    PROJECT_NAME = "oparlsync"
-    PROJECT_VERSION = '0.0.1'
+class BaseConfig:
+    PROJECT_NAME = "politik-bei-uns-daemon"
+    PROJECT_VERSION = '2.1.0'
 
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     LOG_DIR = os.path.abspath(os.path.join(BASE_DIR, os.pardir, 'logs'))
     BODY_DIR = os.path.abspath(os.path.join(BASE_DIR, os.pardir, 'bodies'))
     REGION_DIR = os.path.abspath(os.path.join(BASE_DIR, os.pardir, 'regions'))
@@ -28,11 +28,16 @@ class DefaultConfig(object):
     TMP_OSM_DIR = os.path.abspath(os.path.join(TMP_DIR, 'osm'))
     TMP_REGION_DIR = os.path.abspath(os.path.join(TMP_DIR, 'region'))
 
-    USE_MIRROR = False
-    OPARL_MIRROR_PREFIX = ''
-    OPARL_MIRROR_URL = ''
+    BODY_LIST_MODE = 'blacklist'
+    BODY_LIST = []
+    REGION_LIST_MODE = 'blacklist'
+    REGION_LIST = []
 
-    DEBUG = True
+    USE_MIRROR = False
+    OPARL_MIRROR_PREFIX = 'oparl'
+    OPARL_MIRROR_URL = 'https://mirror.oparl.org'
+
+    DEBUG = False
 
     MONGO_DB_HOST = 'localhost'
     MONGO_DB_PORT = 27017
@@ -43,13 +48,13 @@ class DefaultConfig(object):
     GET_URL_WAIT_TIME = 0.2
     ENABLE_PROCESSING = True
 
-    S3_ENDPOINT = '127.0.0.1:9000'
+    S3_ENDPOINT = 'localhost:9000'
     S3_ACCESS_KEY = ''
     S3_SECRET_KEY = ''
     S3_SECURE = False
-    S3_BUCKET = ''
+    S3_BUCKET = 'oparl'
     S3_LOCATION = 'us-east-1'
-    S3_PUBLIC_URL = ''
+    S3_PUBLIC_URL = 'http://localhost:9000'
 
     ES_ENABLED = True
     ES_HOSTS = []
@@ -58,11 +63,14 @@ class DefaultConfig(object):
     MAIL_FROM = ''
 
     MAIL_HOST = ''
-    MAIL_USE_SSL = True
+    MAIL_PORT = 587
+    MAIL_USE_SSL = False
+    MAIL_USE_TLS = True
     MAIL_USERNAME = ''
     MAIL_PASSWORD = ''
 
     SUBPROCESS_TIMEOUT = 600
+
     PDFTOTEXT_COMMAND = '/usr/bin/pdftotext'
     ABIWORD_COMMAND = '/usr/bin/abiword'
     GHOSTSCRIPT_COMMAND = '/usr/bin/gs'
@@ -72,23 +80,3 @@ class DefaultConfig(object):
 
     THUMBNAIL_SIZES = [1200, 800, 300, 150]
 
-
-class DevelopmentConfig(DefaultConfig):
-    pass
-
-
-class StagingConfig(DefaultConfig):
-    pass
-
-
-class ProductionConfig(DefaultConfig):
-    pass
-
-
-def get_config(MODE):
-    SWITCH = {
-        'DEVELOPMENT': DevelopmentConfig,
-        'STAGING': StagingConfig,
-        'PRODUCTION': ProductionConfig
-    }
-    return SWITCH[MODE]

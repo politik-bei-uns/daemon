@@ -1,0 +1,9 @@
+active: true
+country: DE
+geofabrik_package: /europe/germany/baden-wuerttemberg/tuebingen-regbez-latest.osm.bz2
+id: DE-084210000000
+legacy: true
+name: Ulm
+osm_level: 6
+osm_relation: '62495'
+rgs: 084210000000

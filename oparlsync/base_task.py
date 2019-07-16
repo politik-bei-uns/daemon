@@ -14,6 +14,7 @@ import os
 import sys
 import json
 import time
+import yaml
 import logging
 import pymongo
 import smtplib
@@ -31,7 +32,6 @@ from mongoengine.connection import disconnect as mongoengine_disconnect
 from .config import get_config
 
 
-
 class BaseTask():
     name = 'BaseTask'
     body_id = None
@@ -47,9 +47,9 @@ class BaseTask():
             "url": "",
             "force_full_sync": 0,
             "wait_time": 0.2,
-            "geofabrik_package": False,
-            "osm_relation": False,
-            "name": False
+            "geofabrik_package": None,
+            "osm_relation": None,
+            "name": None
         }
 
 
@@ -109,35 +109,63 @@ class BaseTask():
             # Policies
             needs_policy_update = False
             try:
-                policies = json.loads(self.s3.get_bucket_policy(self.config.S3_BUCKET).decode("utf-8") )
-                if self.config.ENABLE_PROCESSING and len(policies['Statement']) == 1:
+                policies = json.loads(self.s3.get_bucket_policy(self.config.S3_BUCKET).decode("utf-8"))
+                if self.config.ENABLE_PROCESSING and len(policies['Statement']) == 3:
                     needs_policy_update = True
             except NoSuchBucketPolicy:
                 needs_policy_update = True
             if needs_policy_update:
-                policies =  [
+                policies = [
                     {
-                        'Sid': '',
                         'Effect': 'Allow',
-                        'Principal': {'AWS': '*'},
-                        'Action': 's3:GetObject',
-                        'Resource': 'arn:aws:s3:::%s/files/*' % self.config.S3_BUCKET
+                        'Principal': {'AWS': ['*']},
+                        'Action': ['s3:GetBucketLocation'],
+                        'Resource': ['arn:aws:s3:::%s' % self.config.S3_BUCKET]
+                    },
+                    {
+                        'Effect': 'Allow',
+                        'Principal': {'AWS': ['*']},
+                        'Action': ['s3:ListBucket'],
+                        'Resource': ['arn:aws:s3:::%s' % self.config.S3_BUCKET],
+                        'Condition': {
+                            'StringEquals': {
+                                's3:prefix': ['files']
+                            }
+                        }
+                    },
+                    {
+                        'Effect': 'Allow',
+                        'Principal': {'AWS': ['*']},
+                        'Action': ['s3:GetObject'],
+                        'Resource': ['arn:aws:s3:::%s/files*' % self.config.S3_BUCKET]
                     }
                 ]
                 if self.config.ENABLE_PROCESSING:
                     policies.append(
                         {
-                            'Sid': '',
                             'Effect': 'Allow',
-                            'Principal': {'AWS': '*'},
-                            'Action': 's3:GetObject',
-                            'Resource': 'arn:aws:s3:::%s/file-thumbnails/*' % self.config.S3_BUCKET
+                            'Principal': {'AWS': ['*']},
+                            'Action': ['s3:ListBucket'],
+                            'Resource': ['arn:aws:s3:::%s' % self.config.S3_BUCKET],
+                            'Condition': {
+                                'StringEquals': {
+                                    's3:prefix': ['file-thumbnails']
+                                }
+                            }
+                        }
+                    )
+                    policies.append(
+                        {
+                            'Effect': 'Allow',
+                            'Principal': {'AWS': ['*']},
+                            'Action': ['s3:GetObject'],
+                            'Resource': ['arn:aws:s3:::%s/file-thumbnails*' % self.config.S3_BUCKET]
                         }
                     )
                 self.s3.set_bucket_policy(
                     self.config.S3_BUCKET,
                     json.dumps({
-                        'Version': '2018-01-01',
+                        'Version': '2012-10-17',
                         'Statement': policies
                     })
                 )
@@ -146,6 +174,7 @@ class BaseTask():
             self.es = Elasticsearch(
                 self.config.ES_HOSTS
             )
+
     def close(self):
         self.close_connections()
         self.close_logging()
@@ -204,7 +233,7 @@ class BaseTask():
                 'critical error at oparl-mirror',
                 'command %s at %s takes forever' % (cmd, body_id)
             )
-            return False
+            return None
         try:
             if error is not None and error.decode().strip() != '' and 'WARNING **: clutter failed 0, get a life.' not in error.decode():
                 self.datalog.debug("pdf output at command %s; output: %s" % (cmd, error.decode()))
@@ -214,38 +243,55 @@ class BaseTask():
 
     def get_body_config(self, body_id=False, filename=False):
         if not filename:
-            filename = '%s.json' % (body_id)
+            filename = self.get_body_config_file(body_id)
         try:
             with open('%s/%s' % (self.config.BODY_DIR, filename)) as body_config_file:
                 if not body_config_file:
-                    return False
+                    return None
                 try:
                     body_config = deepcopy(self.default_config)
-                    body_config.update(json.load(body_config_file))
+                    body_config.update(yaml.load(body_config_file, Loader=yaml.SafeLoader))
+                    if not body_config.get('active'):
+                        return None
+                    if self.config.BODY_LIST_MODE == 'blacklist':
+                        if body_config.get('id') in self.config.BODY_LIST:
+                            return None
+                    else:
+                        if body_config.get('id') not in self.config.BODY_LIST:
+                            return None
                     return body_config
                 except ValueError:
-                    return False
+                    return None
         except FileNotFoundError:
-            return False
+            return None
 
-    def get_region_config(self, rgs):
+    def get_region_config(self, region_id):
+        filename = self.get_region_config_file(region_id)
         try:
-            with open('%s/%s.json' % (self.config.REGION_DIR, rgs)) as region_config_file:
+            with open('%s/%s' % (self.config.REGION_DIR, filename)) as region_config_file:
                 if not region_config_file:
-                    return False
+                    return None
                 try:
-                    return json.load(region_config_file)
+                    region_config = yaml.load(region_config_file, Loader=yaml.SafeLoader)
+                    if not region_config.get('active'):
+                        return None
+                    if self.config.REGION_LIST_MODE == 'blacklist':
+                        if region_config.get('id') in self.config.REGION_LIST:
+                            return None
+                    else:
+                        if region_config.get('id') not in self.config.REGION_LIST:
+                            return None
+                    return region_config
                 except ValueError:
-                    return False
+                    return None
         except FileNotFoundError:
-            return False
+            return None
 
     def send_mail(self, receivers=None, subject='', body=''):
-        smtp = smtplib.SMTP(
-            host=self.config.MAIL_HOST
-        )
+        smtp = smtplib.SMTP()
+        smtp.connect(self.config.MAIL_SERVER, self.config.MAIL_PORT)
         smtp.ehlo_or_helo_if_needed()
-        if self.config.MAIL_USE_SSL:
+        if self.config.MAIL_USE_TLS:
             smtp.starttls()
             smtp.ehlo_or_helo_if_needed()
         smtp.login(
@@ -256,10 +302,21 @@ class BaseTask():
             'To: %s' % ', '.join(receivers),
             'From: %s' % self.config.MAIL_FROM,
             'Subject: %s' % subject,
-            '', body
+            '',
+            body
         ])
         smtp.sendmail(
             self.config.MAIL_FROM,
             receivers,
             body_full
         )
+
+    def get_body_config_file(self, body_id):
+        for filename in os.listdir(self.config.BODY_DIR):
+            if filename.startswith('%s' % body_id):
+                return filename
+
+    def get_region_config_file(self, regio_id):
+        for filename in os.listdir(self.config.REGION_DIR):
+            if filename.startswith('%s' % regio_id):
+                return filename

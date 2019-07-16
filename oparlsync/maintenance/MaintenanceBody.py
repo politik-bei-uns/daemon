@@ -16,12 +16,13 @@ from ..models import *
 
 class MaintenanceBody:
     def sync_bodies(self):
-        bodies = os.listdir(self.config.BODY_DIR)
-        for body in bodies:
-            if body[-4:] == 'json':
-                self.body_config = self.get_body_config(filename=body)
-                if self.body_config['active']:
-                    self.sync_body(self.body_config['id'])
+        for body in os.listdir(self.config.BODY_DIR):
+            if body[-4:] != '.yml':
+                continue
+            self.body_config = self.get_body_config(filename=body)
+            if not self.body_config['active']:
+                continue
+            self.sync_body(self.body_config['id'])
 
     def sync_body(self, body_id):
         if not self.body_config:

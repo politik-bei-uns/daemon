@@ -40,6 +40,7 @@ class OparlDownload(BaseTask):
         'mongodb',
         's3'
     ]
+    oparl_version = '1.1'
 
     def __init__(self, body_id):
         self.body_id = body_id
@@ -226,12 +227,19 @@ class OparlDownload(BaseTask):
             self.last_update = None
         self.save_object(Body, body_raw)
 
+        if body_raw['type'] == 'https://schema.oparl.org/1.0/Body':
+            self.oparl_version = '1.0'
+        elif body_raw['type'] == 'https://schema.oparl.org/1.1/Body':
+            self.oparl_version = '1.1'
+        else:
+            return None
+
         self.organization_list_url = body_raw['organization']
         self.person_list_url = body_raw['person']
         self.meeting_list_url = body_raw['meeting']
         self.paper_list_url = body_raw['paper']
 
-        if self.config.USE_MIRROR and self.last_update:
+        if self.oparl_version == '1.1' and self.last_update:
             self.membership_list_url = body_raw['membership']
             self.agenda_item_list_url = body_raw['agendaItem']
             self.consultation_list_url = body_raw['consultation']
@@ -246,12 +254,11 @@ class OparlDownload(BaseTask):
                 Location
             ]
 
-
     def get_list(self, object, list_url=False):
         if list_url:
             object_list = self.get_url_json(list_url, is_list=True)
         else:
-            if self.last_update and (self.body_config['force_full_sync'] == 0 or self.config.USE_MIRROR):
+            if self.last_update and self.oparl_version == '1.1':
                 last_update_tmp = self.last_update
                 if self.config.USE_MIRROR:
                     last_update_tmp = last_update_tmp - datetime.timedelta(weeks=1)
@@ -537,7 +544,6 @@ class OparlDownload(BaseTask):
                     paper = None
 
         return result
-
 
     def save_document_values(self, document, key, value):
         if type(document._fields[key]).__name__ == 'DateTimeField':

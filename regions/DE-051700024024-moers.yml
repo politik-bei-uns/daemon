@@ -1,0 +1,9 @@
+active: true
+country: DE
+geofabrik_package: /europe/germany/nordrhein-westfalen/duesseldorf-regbez-latest.osm.bz2
+id: DE-051700024024
+legacy: true
+name: Moers
+osm_level: 8
+osm_relation: '58623'
+rgs: '051700024024'
