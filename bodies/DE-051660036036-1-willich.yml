@@ -2,5 +2,5 @@ active: true
 id: DE-051660036036-1
 name: Willich
 rgs: '051660036036'
-url: https://ris.stadt-willich.de/webservice/oparl/v1/body/1
+url: https://ris.stadt-willich.de/webservice/oparl/v1.1/body/1
 wait_time: 2
