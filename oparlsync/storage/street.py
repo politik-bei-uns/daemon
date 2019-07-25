@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 from mongoengine import Document, BooleanField, ReferenceField, StringField, ListField, DecimalField, DictField
 from .oparl_document import OParlDocument
 
+
 class Street(Document, OParlDocument):
     body = ReferenceField('Body', deref_street=False)
     region = ReferenceField('Region', deref_street=False)

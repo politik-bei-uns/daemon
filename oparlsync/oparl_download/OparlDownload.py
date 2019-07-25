@@ -91,11 +91,18 @@ class OparlDownload(BaseTask):
 
     def run(self, body_id, *args):
         self.reset_cache()
+        self.modified_since = None
+        for arg in args:
+            if arg.startswith('since='):
+                self.modified_since = dateutil_parse(arg.split('=')[1])
+            if arg.startswith('uid='):
+                self.run_single_by_uid(body_id, arg.split('=')[1])
         if len(args):
             if args[0] == 'full':
                 self.run_full(body_id, True)
             else:
                 self.run_single(body_id, *args)
+
         else:
             self.run_full(body_id)
 
@@ -116,6 +123,7 @@ class OparlDownload(BaseTask):
 
         # set last sync if everything is done so far
         body = Body.objects(id=self.body_uid).first()
+        body.beforeLastSync = body.lastSync
         body.lastSync = self.start_time.isoformat()
         body.save()
 
@@ -131,34 +139,10 @@ class OparlDownload(BaseTask):
         self.datalog.info('wait time:            %s s' % round(self.wait_time, 1))
         self.datalog.info('app time:             %s s' % round(
             time.time() - start_time - self.mongodb_request_time - self.minio_time - self.http_request_time - self.wait_time - self.file_download_time,
-            1))
+            1
+        ))
         self.datalog.info('all time:             %s s' % round(time.time() - start_time, 1))
         self.datalog.info('processed %s objects per second' % round(self.mongodb_request_count / (time.time() - start_time), 1))
-
-    def run_single(self, body_id, *args):
-        self.body_config = self.get_body_config(body_id)
-        self.last_update = False
-        try:
-            body = Body.objects(originalId=self.body_config['url']).no_cache().first()
-        except ServerSelectionTimeoutError:
-            sys.exit('fatal: MongoDB not available')
-        if not body:
-            sys.exit('fatal: body does not exist in database.')
-        self.body_uid = body.id
-        if len(args) != 1:
-            sys.exit('fatal: to get a single dataset, please provide just one url or uid.')
-        uid_pattern = re.compile("^([a-d0-9]){24}$")
-        if uid_pattern.match(args[0]):
-            self.run_single_by_uid(body_id, args[0])
-            return
-        try:
-            url = urlparse(args[0])
-        except ValueError:
-            sys.exit('fatal: the argument is neither an url nor an uid.')
-        if (url.scheme == 'http' or url.scheme == 'https') and url.netloc:
-            self.run_single_by_url(body_id, args[0])
-            return
-        sys.exit('fatal: the argument is neither an url nor an id.')
 
     def run_single_by_uid(self, body_id, uid):
         pass
@@ -257,8 +241,9 @@ class OparlDownload(BaseTask):
         if list_url:
             object_list = self.get_url_json(list_url, is_list=True)
         else:
-            self.modified_since = None
-            if self.last_update and self.oparl_version == '1.1':
+            if self.modified_since:
+                pass
+            elif self.last_update and self.oparl_version == '1.1':
                 last_update_tmp = self.last_update
                 if self.config.USE_MIRROR:
                     last_update_tmp = last_update_tmp - datetime.timedelta(weeks=1)

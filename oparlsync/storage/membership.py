@@ -24,8 +24,8 @@ class Membership(Document, OParlDocument):
 
     type = 'https://schema.oparl.org/1.1/Membership'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
-    person = ReferenceField('Person', dbref=False, deref_paper_location=False)
-    organization = ReferenceField('Organization', dbref=False, deref_paper_location=False)
+    person = ReferenceField('Person', dbref=False, deref_paper_location=False, deref_organization=True)
+    organization = ReferenceField('Organization', dbref=False, deref_paper_location=False, deref_person=True)
     role = StringField()
     votingRight = BooleanField()
     startDate = DateTimeField(datetime_format='date')
