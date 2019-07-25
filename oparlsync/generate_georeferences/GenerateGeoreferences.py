@@ -273,7 +273,6 @@ class GenerateGeoreferences(BaseTask):
             return name, number
         return False, False
 
-
     def fix_address_text(self, text):
         text = text.replace('str.', 'straße')
         text = text.replace('strasse', 'straße')

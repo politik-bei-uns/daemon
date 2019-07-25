@@ -16,6 +16,12 @@ from .oparl_document import OParlDocument
 
 
 class Organization(Document, OParlDocument):
+    meta = {
+        'indexes': [
+            'originalId'
+        ],
+    }
+
     type = 'https://schema.oparl.org/1.1/Organization'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     name = StringField()

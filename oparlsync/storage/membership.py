@@ -16,6 +16,12 @@ from .oparl_document import OParlDocument
 
 
 class Membership(Document, OParlDocument):
+    meta = {
+        'indexes': [
+            'originalId'
+        ],
+    }
+
     type = 'https://schema.oparl.org/1.1/Membership'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     person = ReferenceField('Person', dbref=False, deref_paper_location=False)

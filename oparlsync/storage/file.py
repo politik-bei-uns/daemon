@@ -18,6 +18,7 @@ from .oparl_document import OParlDocument
 class File(Document, OParlDocument):
     meta = {
         'indexes': [
+            'originalId',
             {
                 'fields': ['$name', "$text", 'body'],
                 'default_language': 'english',
@@ -72,6 +73,9 @@ class File(Document, OParlDocument):
     thumbnail = DictField(vendor_attribute=True, delete_paper=True, delete_paper_location=True)
     pages = IntField(vendor_attribute=True, delete_paper=True, delete_paper_location=True)
     keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated', deref_paper_location=False, deref_paper=False), vendor_attribute=True)
+    blocked = BooleanField(vendor_attribute=True, default=False)
+    blockedReason = StringField(vendor_attribute=True)
+    blockedReasonInternal = StringField(vendor_attribute=False)
 
     # Felder zur Verarbeitung
     _object_db_name = 'file'

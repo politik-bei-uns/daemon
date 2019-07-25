@@ -46,7 +46,6 @@ class MaintenanceRegionElastic:
             index_name = list(self.es.indices.get_alias('region-latest'))[0]
 
         for region in Region.objects():
-            print(region.name)
             region_dict = region.to_dict()
             region_dict['geosearch'] = {
                 'type': 'envelope',

@@ -16,6 +16,12 @@ from .oparl_document import OParlDocument
 
 
 class Paper(Document, OParlDocument):
+    meta = {
+        'indexes': [
+            'originalId'
+        ],
+    }
+
     type = 'https://schema.oparl.org/1.1/Paper'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False, deref_paper=False)
     name = StringField(fulltext=True, sortable=True)

@@ -15,6 +15,12 @@ from mongoengine import Document, BooleanField, ReferenceField, DateTimeField, S
 from .oparl_document import OParlDocument
 
 class Consultation(Document, OParlDocument):
+    meta = {
+        'indexes': [
+            'originalId'
+        ],
+    }
+
     type = 'https://schema.oparl.org/1.1/Consultation'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     paper = ReferenceField('Paper', dbref=False, deref_paper_location=False)

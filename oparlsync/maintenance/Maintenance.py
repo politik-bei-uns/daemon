@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import sys
 from ..models import *
 from ..base_task import BaseTask
+from mongoengine.errors import ValidationError
 
 from .MaintenanceRemove import MaintenanceRemove
 from .MaintenanceRegion import MaintenanceRegion
@@ -60,23 +61,62 @@ class Maintenance(BaseTask, MaintenanceRemove, MaintenanceRegion, MaintenanceReg
             self.elasticsearch_regions()
         elif args[0] == 'update_street_locality':
             self.update_street_locality()
-        elif args[0] == 'old_import':
-            self.old_import()
         elif args[0] == 'sync_bodies':
             self.sync_bodies()
         elif args[0] == 'sync_body':
             self.sync_body(body_id)
-        elif args[0] == 'correct_regions':
-            self.correct_regions()
         elif args[0] == 'delete_all_locations':
             self.delete_all_locations(body_id)
         elif args[0] == 'delete_last_sync':
             self.delete_last_sync(body_id)
-        elif args[0] == 'fix_nameless_files':
-            self.fix_nameless_files()
         elif args[0] == 'reset_generate_georeferences':
             self.reset_generate_georeferences(body_id)
         elif args[0] == 'sitemap_master':
             self.sitemap_master()
+        elif args[0] == 'fix_oparl_11':
+            self.fix_oparl_11()
+        elif args[0] == 'migrate_new_ids':
+            self.migrate_new_ids()
+        elif args[0] == 'test':
+            self.test()
         else:
             sys.exit('unknown task')
+
+    def activate_body(self, body_id):
+        self.sync_body(body_id)
+        self.generate_regions()
+        self.sync_body(body_id)
+        self.elasticsearch_regions()
+
+    def fix_oparl_11(self):
+        count_delete = 0
+        count_update = 0
+        count_invalid = 0
+        objects = [Body, Person, Membership, Organization, Meeting, AgendaItem, Paper, Consultation, File, Location, LegislativeTerm]
+        for obj in objects:
+            for item in getattr(obj, 'objects'):
+                if not item.originalId:
+                    continue
+                if '/webservice/oparl/v1.0/' in item.originalId:
+                    item.delete()
+                    count_delete += 1
+                if '/webservice/oparl/v1/' in item.originalId:
+                    paper.originalId = item.originalId.replace('/webservice/oparl/v1/', '/webservice/oparl/v1.1/')
+                    try:
+                        item.save()
+                        count_update += 1
+                    except ValidationError:
+                        item.delete()
+                        count_invalid += 1
+        print('deleted %s datasets, deleted %s invalid datasets, updated %s datasets' % (count_delete, count_invalid, count_update))
+
+    def migrate_new_ids(self):
+        for body in Body.objects:
+            if body.uid[0:3] == 'DE-':
+                continue
+            body.uid = 'DE-%s' % body.uid
+            body.save()
+
+    def test(self):
+        for region in Region.objects:
+            print(region.rgs)

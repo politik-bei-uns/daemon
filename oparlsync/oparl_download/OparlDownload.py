@@ -212,7 +212,6 @@ class OparlDownload(BaseTask):
 
         self.correct_document_values(object_json['$set'])
         self.mongodb_request_count += 1
-        start_time = time.time()
         result = self.db_raw.body.find_one_and_update(
             query,
             object_json,
@@ -258,21 +257,29 @@ class OparlDownload(BaseTask):
         if list_url:
             object_list = self.get_url_json(list_url, is_list=True)
         else:
+            self.modified_since = None
             if self.last_update and self.oparl_version == '1.1':
                 last_update_tmp = self.last_update
                 if self.config.USE_MIRROR:
                     last_update_tmp = last_update_tmp - datetime.timedelta(weeks=1)
-                object_list = self.get_url_json(
-                    getattr(self, '%s_list_url' % object._object_db_name) + '?modified_since=%s' % last_update_tmp.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    is_list=True
-                )
-            else:
-                object_list = self.get_url_json(getattr(self, '%s_list_url' % object._object_db_name), is_list=True)
+                self.modified_since = last_update_tmp.strftime('%Y-%m-%dT%H:%M:%SZ')
+            elif self.last_update:
+                self.modified_since = (self.last_update - datetime.timedelta(days=90)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            url = getattr(self, '%s_list_url' % object._object_db_name)
+            if self.modified_since:
+                url += '&' if '?' in url else '?'
+                url += 'modified_since=%s' % self.modified_since
+            object_list = self.get_url_json(url, is_list=True)
         while object_list:
             for object_raw in object_list['data']:
                 self.save_object(object, object_raw)
             if 'next' in object_list['links']:
-                object_list = self.get_url_json(object_list['links']['next'], is_list=True)
+                url = object_list['links']['next']
+                # Patching modified_since back in URL because some RIS loose it at page 2 :(
+                if 'modified_since' not in url and self.modified_since:
+                    url += '&' if '?' in url else '?'
+                    url += 'modified_since=%s' % self.modified_since
+                object_list = self.get_url_json(url, is_list=True)
             else:
                 break
 

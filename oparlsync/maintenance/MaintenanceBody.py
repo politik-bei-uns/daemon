@@ -15,6 +15,7 @@ from ..models import *
 
 
 class MaintenanceBody:
+
     def sync_bodies(self):
         for body in os.listdir(self.config.BODY_DIR):
             if body[-4:] != '.yml':
@@ -33,13 +34,17 @@ class MaintenanceBody:
         object_json = {
             '$set': {
                 'uid': body_id,
-                'rgs': self.body_config['rgs']
+                'rgs': self.body_config['rgs'],
+                'name': self.body_config['name']
             }
         }
         if self.config.ENABLE_PROCESSING:
-            region = Region.objects(rgs=self.body_config['rgs'].rstrip('0')).first()
-            if region:
-                object_json['$set']['region'] = region.id
+            region = Region.objects(rgs=self.body_config['rgs']).first()
+            if not region:
+                print('missing region at %s' % self.body_config['rgs'])
+                return
+            object_json['$set']['region'] = region.id
+
         self.db_raw.body.find_one_and_update(
             query,
             object_json,

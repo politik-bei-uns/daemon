@@ -16,6 +16,12 @@ from .oparl_document import OParlDocument
 
 
 class Body(Document, OParlDocument):
+    meta = {
+        'indexes': [
+            'originalId'
+        ],
+    }
+
     type = 'https://schema.oparl.org/1.1/Body'
     shortName = StringField()
     name = StringField()

@@ -16,6 +16,12 @@ from .oparl_document import OParlDocument
 
 
 class AgendaItem(Document, OParlDocument):
+    meta = {
+        'indexes': [
+            'originalId'
+        ],
+    }
+
     type = 'https://schema.oparl.org/1.1/AgendaItem'
     body = ReferenceField('Body', dbref=False, deref_paper_location=False)
     meeting = ReferenceField('Meeting', dbref=False, deref_paper_location=False)

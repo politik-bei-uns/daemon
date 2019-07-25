@@ -1,5 +1,5 @@
-active: false
+active: true
 id: DE-083110000000-1
 name: Freiburg
-rgs: 083110000000
-url: https://kis.kreis-viersen.de/webservice/oparl/v1/body/1
+rgs: '083110000000'
+url: 'https://ris.freiburg.de/oparl/body/FR'
