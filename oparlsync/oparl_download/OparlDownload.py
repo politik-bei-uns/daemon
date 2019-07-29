@@ -95,8 +95,12 @@ class OparlDownload(BaseTask):
         for arg in args:
             if arg.startswith('since='):
                 self.modified_since = dateutil_parse(arg.split('=')[1])
-            if arg.startswith('uid='):
+            elif arg.startswith('uid='):
                 self.run_single_by_uid(body_id, arg.split('=')[1])
+            elif arg.startswith('url='):
+                self.run_single_by_url(body_id, arg.split('=')[1])
+            elif arg.startswith('list='):
+                self.run_single_by_list(body_id, arg.split('=')[1])
         if len(args):
             if args[0] == 'full':
                 self.run_full(body_id, True)
@@ -143,6 +147,21 @@ class OparlDownload(BaseTask):
         ))
         self.datalog.info('all time:             %s s' % round(time.time() - start_time, 1))
         self.datalog.info('processed %s objects per second' % round(self.mongodb_request_count / (time.time() - start_time), 1))
+
+    def run_single_by_list(self, body_id, list):
+        self.body_config = self.get_body_config(body_id)
+        self.datalog.info('Body %s sync launched.' % body_id)
+        if not self.body_config:
+            self.datalog.error('body id %s configuration not found' % body_id)
+            return
+        if 'url' not in self.body_config:
+            return
+        start_time = time.time()
+        self.get_body()
+        if not self.body_uid:
+            return
+        self.get_list(Paper, list)
+
 
     def run_single_by_uid(self, body_id, uid):
         pass
@@ -237,7 +256,7 @@ class OparlDownload(BaseTask):
                 Location
             ]
 
-    def get_list(self, object, list_url=False):
+    def get_list(self, object, list_url=None):
         if list_url:
             object_list = self.get_url_json(list_url, is_list=True)
         else:
