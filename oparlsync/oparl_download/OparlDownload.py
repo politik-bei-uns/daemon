@@ -100,7 +100,7 @@ class OparlDownload(BaseTask):
             elif arg.startswith('url='):
                 self.run_single_by_url(body_id, arg.split('=')[1])
             elif arg.startswith('list='):
-                self.run_single_by_list(body_id, arg.split('=')[1])
+                self.run_single_by_list(body_id, '='.join(arg.split('=')[1:]))
         if len(args):
             if args[0] == 'full':
                 self.run_full(body_id, True)
