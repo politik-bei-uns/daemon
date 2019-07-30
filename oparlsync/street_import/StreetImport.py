@@ -103,6 +103,8 @@ class StreetImport(BaseTask):
         self.datalog.info("gathering streets ...")
         streets = {}
         for street_fragment in osm.street_fragments:
+            if len(street_fragment['name']) < 3:
+                continue
             if street_fragment['name'] not in streets:
                 streets[street_fragment['name']] = {
                     'street': {
@@ -129,6 +131,8 @@ class StreetImport(BaseTask):
                 self.datalog.warn('multiline string fragment with len 1 found: %s' % json.dumps(coordinates))
         self.datalog.info("gathering addresses ...")
         for address in osm.addresses:
+            if len(address['name']) < 3:
+                continue
             if address['name'] not in streets:
                 self.datalog.info("%s missing" % address['name'])
                 continue
@@ -152,10 +156,6 @@ class StreetImport(BaseTask):
                             streets[address['name']]['street']['properties'][field].append(address[field])
             # set nodes
             if address['type'] == 'point':
-
-                if point not in osm.nodes:
-                    self.datalog.info("missing point %s" % point)
-                    continue
                 base_address['geometry'] = {
                     'type': 'Point',
                     'coordinates': osm.nodes[address['node']]

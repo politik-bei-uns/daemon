@@ -92,16 +92,19 @@ class ElasticsearchPaperLocationIndex:
                 location_dict['geojson'] = json.dumps(location_dict['geojson'])
 
             location_dict['legacy'] = bool(location.region.legacy)
-
-            new_doc = self.es.index(
-                index=index_name,
-                id=str(location.id),
-                body=location_dict
-            )
-            if new_doc['result'] in ['created', 'updated']:
-                self.statistics[new_doc['result']] += 1
-            else:
-                self.datalog.warn('Unknown result at %s' % location.id)
+            try:
+                new_doc = self.es.index(
+                    index=index_name,
+                    id=str(location.id),
+                    body=location_dict
+                )
+                if new_doc['result'] in ['created', 'updated']:
+                    self.statistics[new_doc['result']] += 1
+                else:
+                    self.datalog.warn('Unknown result at %s' % location.id)
+            except BrokenPipeError:
+                print('ignoring location %s because of size' % location.id)
+                continue
         self.datalog.info('ElasticSearch paper-location import successfull: %s created, %s updated' % (
             self.statistics['created'],
             self.statistics['updated']
