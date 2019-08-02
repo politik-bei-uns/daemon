@@ -24,7 +24,7 @@ class Location(Document, OParlDocument):
 
     type = 'https://schema.oparl.org/1.1/Location'
     description = StringField(fulltext=True)
-    geojson = DictField(geojson=True, delete_street=True)
+    geojson = DictField(geojson=True, delete_street=True, delete_paper=True, delete_meeting=True, delete_organization=True, delete_person=True)
     streetAddress = StringField()
     room = StringField()
     postalCode = StringField()
