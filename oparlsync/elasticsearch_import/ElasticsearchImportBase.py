@@ -26,9 +26,8 @@ class ElasticsearchImportBase:
                     continue
             if base_object._fields[field].__class__.__name__ == 'ListField':
                 if base_object._fields[field].field.__class__.__name__ == 'ReferenceField':
-                    if getattr(base_object._fields[field].field, deref):
-                        mapping[field] = self.es_mapping_generator(base_object._fields[field].field.document_type,
-                                                                   deref, True)
+                    if getattr(base_object._fields[field].field, deref, False):
+                        mapping[field] = self.es_mapping_generator(base_object._fields[field].field.document_type, deref, True)
                     else:
                         mapping[field] = self.es_mapping_field_object()
                 else:
@@ -36,7 +35,7 @@ class ElasticsearchImportBase:
                     if mapping[field] == None:
                         del mapping[field]
             elif base_object._fields[field].__class__.__name__ == 'ReferenceField':
-                if getattr(base_object._fields[field], deref):
+                if getattr(base_object._fields[field], deref, False):
                     mapping[field] = self.es_mapping_generator(base_object._fields[field].document_type, deref, True)
                 else:
                     mapping[field] = self.es_mapping_field_object()
@@ -99,18 +98,23 @@ class ElasticsearchImportBase:
             'type': 'text'
         }
 
+    """
+    'nested_fields': {
+        'limit': 500
+    },
+    'total_fields': {
+        'limit': 2500
+    }
+    """
     def es_settings(self):
         return {
             'index': {
                 'max_result_window': 250000,
-                #                'mapping': {
-                #                    'nested_fields': {
-                #                        'limit': 500
-                #                    },
-                #                    'total_fields': {
-                #                        'limit': 2500
-                #                    }
-                #                },
+                'mapping': {
+                    'nested_objects': {
+                        'limit': 250000
+                    }
+                },
                 'analysis': {
                     'filter': {
                         'german_stop': {

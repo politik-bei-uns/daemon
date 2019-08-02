@@ -18,10 +18,12 @@ from .ElasticsearchPaperIndex import ElasticsearchPaperIndex
 from .ElasticsearchPaperLocationIndex import ElasticsearchPaperLocationIndex
 from .ElasticsearchOrganizationIndex import ElasticsearchOrganizationIndex
 from .ElasticsearchPersonIndex import ElasticsearchPersonIndex
+from .ElasticsearchMeetingIndex import ElasticsearchMeetingIndex
 
 
 class ElasticsearchImport(BaseTask, ElasticsearchImportBase, ElasticsearchStreetIndex, ElasticsearchPaperIndex,
-                          ElasticsearchPaperLocationIndex, ElasticsearchOrganizationIndex, ElasticsearchPersonIndex):
+                          ElasticsearchPaperLocationIndex, ElasticsearchOrganizationIndex, ElasticsearchPersonIndex,
+                          ElasticsearchMeetingIndex):
     name = 'ElasticsearchImport'
     services = [
         'mongodb',
@@ -48,5 +50,8 @@ class ElasticsearchImport(BaseTask, ElasticsearchImportBase, ElasticsearchStreet
         self.street_index()
         self.paper_location_index()
         self.paper_index()
+        self.meeting_index()
+        self.person_index()
+        self.organization_index()
         self.body = None
         self.es = None

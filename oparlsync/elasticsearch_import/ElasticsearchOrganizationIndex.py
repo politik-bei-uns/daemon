@@ -25,7 +25,7 @@ class ElasticsearchOrganizationIndex:
             now = datetime.utcnow()
             index_name = 'organization-' + now.strftime('%Y%m%d-%H%M')
 
-            mapping = self.es_mapping_generator(Paper, 'deref_organization')
+            mapping = self.es_mapping_generator(Organization, 'deref_organization')
             mapping['properties']['region'] = {
                 'type': 'text'
             }
@@ -52,7 +52,7 @@ class ElasticsearchOrganizationIndex:
             regions.append(str(region.id))
             region = region.parent
 
-        for organization in Paper.objects(body=self.body).no_cache():
+        for organization in Organization.objects(body=self.body).no_cache():
             if organization.deleted:
                 self.es.delete(
                     index=index_name,

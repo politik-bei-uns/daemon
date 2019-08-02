@@ -23,16 +23,16 @@ class AgendaItem(Document, OParlDocument):
     }
 
     type = 'https://schema.oparl.org/1.1/AgendaItem'
-    body = ReferenceField('Body', dbref=False, deref_paper_location=False)
-    meeting = ReferenceField('Meeting', dbref=False, deref_paper_location=False)
+    body = ReferenceField('Body')
+    meeting = ReferenceField('Meeting')
     number = StringField()
     name = StringField()
     public = BooleanField()
-    consultation = ReferenceField('Consultation', dbref=False, deref_paper_location=False)
+    consultation = ReferenceField('Consultation', deref_meeting=True)
     result = StringField()
     resolutionText = StringField()
-    resolutionFile = ReferenceField('File', dbref=False, deref_paper_location=True)
-    auxiliaryFile = ListField(ReferenceField('File', dbref=False, deref_paper_location=True), default=[])
+    resolutionFile = ReferenceField('File', deref_paper_location=True, deref_meeting=True)
+    auxiliaryFile = ListField(ReferenceField('File', deref_paper_location=True, deref_meeting=True), default=[])
     start = DateTimeField(datetime_format='datetime')
     end = DateTimeField(datetime_format='datetime')
     license = StringField()

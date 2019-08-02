@@ -25,7 +25,7 @@ class ElasticsearchMeetingIndex:
             now = datetime.utcnow()
             index_name = 'meeting-' + now.strftime('%Y%m%d-%H%M')
 
-            mapping = self.es_mapping_generator(Paper, 'deref_meeting')
+            mapping = self.es_mapping_generator(Meeting, 'deref_meeting')
             mapping['properties']['region'] = {
                 'type': 'text'
             }
@@ -52,7 +52,7 @@ class ElasticsearchMeetingIndex:
             regions.append(str(region.id))
             region = region.parent
 
-        for meeting in Paper.objects(body=self.body).no_cache():
+        for meeting in Meeting.objects(body=self.body).no_cache():
             if meeting.deleted:
                 self.es.delete(
                     index=index_name,

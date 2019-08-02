@@ -19,12 +19,10 @@ class OParlDocument(object):
         result = {}
         for field in self._fields:
             if delete:
-                if hasattr(self._fields[field], delete):
-                    if getattr(self._fields[field], delete):
-                        continue
-            if clean_none and hasattr(object, field):
-                if getattr(object, field):
+                if getattr(self._fields[field], delete, False):
                     continue
+            if clean_none and getattr(object, field, False):
+                continue
             if self._fields[field].__class__.__name__ == 'ListField':
                 if self._fields[field].field.__class__.__name__ == 'ReferenceField':
                     if not field in result:

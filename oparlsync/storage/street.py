@@ -15,10 +15,10 @@ from .oparl_document import OParlDocument
 
 
 class Street(Document, OParlDocument):
-    body = ReferenceField('Body', deref_street=False)
-    region = ReferenceField('Region', deref_street=False)
+    body = ReferenceField('Body')
+    region = ReferenceField('Region')
     streetName = StringField(fulltext=True)
-    streetNumber = ListField(ReferenceField('StreetNumber', deref_street=False), default=[])
+    streetNumber = ListField(ReferenceField('StreetNumber'), default=[])
     postalCode = ListField(StringField(fulltext=True))
     subLocality = ListField(StringField(fulltext=True))
     locality = ListField(StringField(fulltext=True))

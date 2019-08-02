@@ -22,5 +22,5 @@ class Region(Document, OParlDocument):
     legacy = BooleanField(default=False)
     bounds = ListField(ListField(), delete_region=True)
     geojson = DictField(geojson=True)
-    parent = ReferenceField('Region', deref_document=False, deref_region=False)
-    body = ListField(ReferenceField('Body', deref_document=False, deref_region=False), default=[])
+    parent = ReferenceField('Region')
+    body = ListField(ReferenceField('Body'), default=[])

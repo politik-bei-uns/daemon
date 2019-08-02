@@ -25,7 +25,7 @@ class ElasticsearchPersonIndex:
             now = datetime.utcnow()
             index_name = 'person-' + now.strftime('%Y%m%d-%H%M')
 
-            mapping = self.es_mapping_generator(Paper, 'deref_person')
+            mapping = self.es_mapping_generator(Person, 'deref_person')
             mapping['properties']['region'] = {
                 'type': 'text'
             }
@@ -52,7 +52,7 @@ class ElasticsearchPersonIndex:
             regions.append(str(region.id))
             region = region.parent
 
-        for person in Paper.objects(body=self.body).no_cache():
+        for person in Person.objects(body=self.body).no_cache():
             if person.deleted:
                 self.es.delete(
                     index=index_name,

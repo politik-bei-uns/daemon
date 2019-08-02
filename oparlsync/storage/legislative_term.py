@@ -23,7 +23,7 @@ class LegislativeTerm(Document, OParlDocument):
     }
 
     type = 'https://schema.oparl.org/1.1/LegislativeTerm'
-    body = ReferenceField('Body', dbref=False, deref_paper_location=False)
+    body = ReferenceField('Body')
     name = StringField(fulltext=True)
     startDate = DateTimeField(datetime_format='date')
     endDate = DateTimeField(datetime_format='date')

@@ -23,20 +23,20 @@ class Meeting(Document, OParlDocument):
     }
 
     type = 'https://schema.oparl.org/1.1/Meeting'
-    body = ReferenceField('Body', dbref=False, deref_paper_location=False)
+    body = ReferenceField('Body')
     name = StringField(fulltext=True)
     meetingState = StringField()
     cancelled = BooleanField()
     start = DateTimeField(datetime_format='datetime')
     end = DateTimeField(datetime_format='datetime')
-    location = ReferenceField('Location', dbref=False, deref_paper_location=False, deref_meeting=True)
-    organization = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=False, deref_meeting=True), default=[])
-    participant = ListField(ReferenceField('Person', dbref=False, deref_paper_location=False, deref_meeting=True), default=[])
-    invitation = ReferenceField('File', dbref=False, deref_paper_location=True)
-    resultsProtocol = ReferenceField('File', dbref=False, deref_paper_location=True, deref_meeting=True)
-    verbatimProtocol = ReferenceField('File', dbref=False, deref_paper_location=True, deref_meeting=True)
-    auxiliaryFile = ListField(ReferenceField('File', dbref=False, deref_paper_location=True, deref_meeting=True), default=[])
-    agendaItem = ListField(ReferenceField('AgendaItem', dbref=False, deref_paper_location=True, deref_meeting=True), default=[])
+    location = ReferenceField('Location', deref_meeting=True)
+    organization = ListField(ReferenceField('Organization', deref_meeting=True), default=[])
+    participant = ListField(ReferenceField('Person', deref_meeting=True), default=[])
+    invitation = ReferenceField('File', deref_paper_location=True, deref_meeting=True)
+    resultsProtocol = ReferenceField('File', deref_paper_location=True, deref_meeting=True)
+    verbatimProtocol = ReferenceField('File', deref_paper_location=True, deref_meeting=True)
+    auxiliaryFile = ListField(ReferenceField('File', deref_paper_location=True, deref_meeting=True), default=[])
+    agendaItem = ListField(ReferenceField('AgendaItem', deref_paper_location=True, deref_meeting=True), default=[])
     license = StringField()
     keyword = ListField(StringField(fulltext=True), default=[])
     created = DateTimeField(datetime_format='datetime', required=True)
@@ -49,7 +49,7 @@ class Meeting(Document, OParlDocument):
     mirrorId = StringField(vendor_attribute=True)
     georeferenceStatus = StringField(vendor_attribute=True)
     georeferenceGenerated = DateTimeField(datetime_format='datetime', vendor_attribute=True)
-    keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated', deref_paper_location=False), vendor_attribute=True)
+    keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated'), vendor_attribute=True)
 
     # Felder zur Verarbeitung
     _object_db_name = 'meeting'

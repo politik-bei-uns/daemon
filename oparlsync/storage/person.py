@@ -23,7 +23,7 @@ class Person(Document, OParlDocument):
     }
 
     type = 'https://schema.oparl.org/1.1/Person'
-    body = ReferenceField('Body', dbref=False, deref_paper_location=False)
+    body = ReferenceField('Body')
     name = StringField(fulltext=True)
     familyName = StringField(fulltext=True)
     givenName = StringField(fulltext=True)
@@ -33,9 +33,9 @@ class Person(Document, OParlDocument):
     gender = StringField()
     phone = ListField(StringField(fulltext=True), default=[])
     email = ListField(StringField(fulltext=True), default=[])
-    location = ReferenceField('Location', dbref=False, deref_paper_location=False, deref_person=True)
+    location = ReferenceField('Location', deref_person=True)
     status = ListField(StringField(), default=[])
-    membership = ListField(ReferenceField('Membership', dbref=False, deref_paper_location=True, deref_person=True), default=[])
+    membership = ListField(ReferenceField('Membership', deref_paper_location=True, deref_person=True), default=[])
     life = StringField(fulltext=True)
     lifeSource = StringField()
     license = StringField()

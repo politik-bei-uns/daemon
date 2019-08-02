@@ -23,14 +23,14 @@ class Membership(Document, OParlDocument):
     }
 
     type = 'https://schema.oparl.org/1.1/Membership'
-    body = ReferenceField('Body', dbref=False, deref_paper_location=False)
-    person = ReferenceField('Person', dbref=False, deref_paper_location=False, deref_organization=True)
-    organization = ReferenceField('Organization', dbref=False, deref_paper_location=False, deref_person=True)
+    body = ReferenceField('Body')
+    person = ReferenceField('Person', deref_organization=True)
+    organization = ReferenceField('Organization', deref_person=True)
     role = StringField()
     votingRight = BooleanField()
     startDate = DateTimeField(datetime_format='date')
     endDate = DateTimeField(datetime_format='date')
-    onBehalfOf = ReferenceField('Organization', dbref=False, deref_paper_location=False)
+    onBehalfOf = ReferenceField('Organization', deref_person=True)
     license = StringField()
     keyword = ListField(StringField(), default=[])
     created = DateTimeField(datetime_format='datetime')
@@ -49,4 +49,4 @@ class Membership(Document, OParlDocument):
         super(Document, self).__init__(*args, **kwargs)
 
     def __repr__(self):
-        return '<Membership %r>' % self.name
+        return '<Membership %r>' % self.id

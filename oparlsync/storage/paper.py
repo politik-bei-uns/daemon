@@ -23,21 +23,21 @@ class Paper(Document, OParlDocument):
     }
 
     type = 'https://schema.oparl.org/1.1/Paper'
-    body = ReferenceField('Body', dbref=False, deref_paper_location=False, deref_paper=False)
+    body = ReferenceField('Body')
     name = StringField(fulltext=True, sortable=True)
     reference = StringField(fulltext=True)
     date = DateTimeField(datetime_format='date')
     paperType = StringField()
-    relatedPaper = ListField(ReferenceField('Paper', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    superordinatedPaper = ListField(ReferenceField('Paper', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    subordinatedPaper = ListField(ReferenceField('Paper', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    mainFile = ReferenceField('File', dbref=False, deref_paper_location=True, deref_paper=True)
-    auxiliaryFile = ListField(ReferenceField('File', dbref=False, deref_paper_location=True, deref_paper=True), default=[])
-    location = ListField(ReferenceField('Location', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    originatorPerson = ListField(ReferenceField('Person', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    underDirectionOf = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    originatorOrganization = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=False, deref_paper=False), default=[])
-    consultation = ListField(ReferenceField('Consultation', dbref=False, deref_paper_location=True, deref_paper=False), default=[])
+    relatedPaper = ListField(ReferenceField('Paper'), default=[])
+    superordinatedPaper = ListField(ReferenceField('Paper'), default=[])
+    subordinatedPaper = ListField(ReferenceField('Paper'), default=[])
+    mainFile = ReferenceField('File', deref_paper_location=True, deref_paper=True)
+    auxiliaryFile = ListField(ReferenceField('File', deref_paper_location=True, deref_paper=True), default=[])
+    location = ListField(ReferenceField('Location'), default=[])
+    originatorPerson = ListField(ReferenceField('Person'), default=[])
+    underDirectionOf = ListField(ReferenceField('Organization'), default=[])
+    originatorOrganization = ListField(ReferenceField('Organization', ), default=[])
+    consultation = ListField(ReferenceField('Consultation', deref_paper_location=True), default=[])
     license = StringField()
     keyword = ListField(StringField(fulltext=True), default=[])
     created = DateTimeField(datetime_format='datetime', required=True)
@@ -51,8 +51,8 @@ class Paper(Document, OParlDocument):
     mirrorId = StringField(vendor_attribute=True)
     georeferenceStatus = StringField(vendor_attribute=True)
     georeferenceGenerated = DateTimeField(datetime_format='datetime', vendor_attribute=True)
-    keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated', deref_paper_location=False, deref_paper=False), vendor_attribute=True)
-    locationOrigin = ListField(ReferenceField('LocationOrigin', deref_paper_location=False, deref_paper=False), vendor_attribute=True)
+    keywordUsergenerated = ListField(ReferenceField('KeywordUsergenerated'), vendor_attribute=True)
+    locationOrigin = ListField(ReferenceField('LocationOrigin'), vendor_attribute=True)
 
     # Felder zur Verarbeitung
     _object_db_name = 'paper'

@@ -22,11 +22,11 @@ class Consultation(Document, OParlDocument):
     }
 
     type = 'https://schema.oparl.org/1.1/Consultation'
-    body = ReferenceField('Body', dbref=False, deref_paper_location=False)
-    paper = ReferenceField('Paper', dbref=False, deref_paper_location=False)
-    agendaItem = ReferenceField('AgendaItem', dbref=False, deref_paper_location=False)
-    meeting = ReferenceField('Meeting', dbref=False, deref_paper_location=False)
-    organization = ListField(ReferenceField('Organization', dbref=False, deref_paper_location=False), default=[])
+    body = ReferenceField('Body')
+    paper = ReferenceField('Paper')
+    agendaItem = ReferenceField('AgendaItem')
+    meeting = ReferenceField('Meeting')
+    organization = ListField(ReferenceField('Organization'), default=[])
     authoritative = BooleanField()
     role = StringField()
     license = StringField()
