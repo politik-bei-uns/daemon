@@ -28,7 +28,7 @@ class OParlDocument(object):
                     if not field in result:
                         result[field] = []
                     if deref:
-                        if getattr(self._fields[field].field, deref):
+                        if getattr(self._fields[field].field, deref, False):
                             for sub_object in getattr(self, field):
                                 result[field].append(
                                     sub_object.to_dict(deref=deref, format_datetime=format_datetime, delete=delete,
