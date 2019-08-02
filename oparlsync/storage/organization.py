@@ -29,7 +29,7 @@ class Organization(Document, OParlDocument):
     meeting = ListField(ReferenceField('Meeting', deref_organization=True), external_list=True)
     shortName = StringField()
     post = ListField(StringField(), default=[])
-    subOrganizationOf = ReferenceField('Organization', deref_organization=True)
+    subOrganizationOf = ReferenceField('Organization')
     organizationType = StringField()
     classification = StringField()
     startDate = DateTimeField(datetime_format='date')
