@@ -44,9 +44,8 @@ class OParlDocument(object):
             elif self._fields[field].__class__.__name__ == 'ReferenceField':
                 if getattr(self, field):
                     if deref:
-                        if getattr(self._fields[field], deref):
-                            result[field] = getattr(self, field).to_dict(deref=deref, format_datetime=format_datetime,
-                                                                         delete=delete, clean_none=clean_none)
+                        if getattr(self._fields[field], deref, False):
+                            result[field] = getattr(self, field).to_dict(deref=deref, format_datetime=format_datetime, delete=delete, clean_none=clean_none)
                         else:
                             result[field] = str(getattr(self, field).id)
                     else:

@@ -16,6 +16,7 @@ from ..models import *
 from ..base_task import BaseTask
 from mongoengine.base.datastructures import BaseList
 from .ElasticsearchImportBase import ElasticsearchImportBase
+from elasticsearch.exceptions import ConnectionError
 
 
 class ElasticsearchPaperLocationIndex:
@@ -102,7 +103,7 @@ class ElasticsearchPaperLocationIndex:
                     self.statistics[new_doc['result']] += 1
                 else:
                     self.datalog.warn('Unknown result at %s' % location.id)
-            except BrokenPipeError:
+            except ConnectionError:
                 print('ignoring location %s because of size' % location.id)
                 continue
         self.datalog.info('ElasticSearch paper-location import successfull: %s created, %s updated' % (
