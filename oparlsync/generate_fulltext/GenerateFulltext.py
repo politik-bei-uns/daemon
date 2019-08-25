@@ -26,8 +26,7 @@ class GenerateFulltext(BaseTask):
     ]
 
 
-    def __init__(self, body_id):
-        self.body_id = body_id
+    def __init__(self, **kwargs):
         super().__init__()
         self.statistics = {
             'wrong-mimetype': 0,
@@ -35,11 +34,9 @@ class GenerateFulltext(BaseTask):
             'no-text': 0,
             'successful': 0
         }
-
-    def run(self, body_id, *args):
         if not self.config.ENABLE_PROCESSING:
             return
-        self.body = Body.objects(uid=body_id).no_cache().first()
+        self.body = Body.objects(uid=kwargs.get('body')).no_cache().first()
         if not self.body:
             return
 

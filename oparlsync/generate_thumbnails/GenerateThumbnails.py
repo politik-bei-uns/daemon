@@ -27,19 +27,16 @@ class GenerateThumbnails(BaseTask):
         's3'
     ]
 
-    def __init__(self, body_id):
-        self.body_id = body_id
+    def __init__(self, **kwargs):
         super().__init__()
         self.statistics = {
             'wrong-mimetype': 0,
             'file-missing': 0,
             'successful': 0
         }
-
-    def run(self, body_id, *args):
         if not self.config.ENABLE_PROCESSING:
             return
-        self.body = Body.objects(uid=body_id).no_cache().first()
+        self.body = Body.objects(uid=kwargs.get('body')).no_cache().first()
         if not self.body:
             return
         files = File.objects(thumbnailStatus__exists=False, body=self.body.id).no_cache().all()

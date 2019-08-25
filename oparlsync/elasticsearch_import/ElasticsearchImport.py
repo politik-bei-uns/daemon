@@ -30,17 +30,11 @@ class ElasticsearchImport(BaseTask, ElasticsearchImportBase, ElasticsearchStreet
         'elasticsearch'
     ]
 
-    def __init__(self, body_id):
-        self.body_id = body_id
+    def __init__(self, **kwargs):
         super().__init__()
-
-    def __del__(self):
-        pass
-
-    def run(self, body_id, *args):
         if not (self.config.ENABLE_PROCESSING and self.config.ES_ENABLED):
             return
-        self.body = Body.objects(uid=body_id).no_cache().first()
+        self.body = Body.objects(uid=kwargs.get('body')).no_cache().first()
         if not self.body:
             return
         self.statistics = {

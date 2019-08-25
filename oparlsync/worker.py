@@ -38,15 +38,15 @@ from oparlsync.misc import Misc
 
 class Worker(Process):
     modules = {
-        'oparl_download': OparlDownload,
-        'generate_thumbnails': GenerateThumbnails,
-        'generate_fulltext': GenerateFulltext,
-        'maintenance': Maintenance,
-        'street_import': StreetImport,
-        'generate_georeferences': GenerateGeoreferences,
-        'generate_backrefs': GenerateBackrefs,
-        'elasticsearch_import': ElasticsearchImport,
-        'generate_sitemap': GenerateSitemap,
+        'ownload': OparlDownload,
+        'thumbnails': GenerateThumbnails,
+        'fulltext': GenerateFulltext,
+        'worker': Maintenance,
+        'street': StreetImport,
+        'georefs': GenerateGeoreferences,
+        'backrefs': GenerateBackrefs,
+        'elastic': ElasticsearchImport,
+        'sitemap': GenerateSitemap,
         'misc': Misc
     }
 
@@ -64,17 +64,16 @@ class Worker(Process):
 
         if self.config.ENABLE_PROCESSING:
             self.next_job = {
-                'oparl_download': ['generate_backrefs', 'generate_thumbnails'],
-                'generate_backrefs': ['generate_fulltext'],
-                'generate_fulltext': ['generate_georeferences'],
-                'generate_georeferences': ['elasticsearch_import'],
-                'elasticsearch_import': ['misc', 'generate_sitemap']
+                'download': ['backrefs', 'thumbnails'],
+                'backrefs': ['fulltext'],
+                'fulltext': ['georefs'],
+                'ggeorefs': ['elastic'],
+                'elastic': ['misc', 'sitemap']
             }
         else:
             self.next_job = {
-                'oparl_download': ['generate_backrefs']
+                'download': ['backrefs']
             }
-        #self.common = Common(prefix=self.process_name)
         setproctitle('%s worker: idle ' % (self.config.PROJECT_NAME))
         self.statuslog.info('Process %s started!' % self.process_name)
         while True:
@@ -84,10 +83,8 @@ class Worker(Process):
                 if job:
                     current_module = None
                     try:
-                        setproctitle('%s worker: %s %s ' % (self.config.PROJECT_NAME, job.payload['module'], job.payload['body_id']))
-                        #self.common.update_datalog(job.payload['module'], job.payload['body_id'])
-                        current_module = self.modules[job.payload['module']](job.payload['body_id'])
-                        current_module.run(job.payload['body_id'])
+                        setproctitle('%s worker: %s %s ' % (self.config.PROJECT_NAME, job.payload['module'], job.payload.get('body', '')))
+                        current_module = self.modules[job.payload['module']](**job.payload)
                     except:
                         self.send_mail(
                             self.config.ADMINS,
@@ -97,10 +94,10 @@ class Worker(Process):
                     finally:
                         if current_module:
                             current_module.close()
-                        self.add_next_to_queue(job.payload['module'], job.payload['body_id'])
+                        self.add_next_to_queue(job.payload['module'], **job.payload)
                         job.complete()
                         current_module = None
-                        setproctitle('%s worker: idle ' % (self.config.PROJECT_NAME))
+                        setproctitle('%s worker: idle ' % self.config.PROJECT_NAME)
             if self.tick >= 100000:
                 self.tick = 0
             self.tick += 1
@@ -131,14 +128,13 @@ class Worker(Process):
             max_attempts=3
         )
 
-    def add_next_to_queue(self, current_module, body_id):
+    def add_next_to_queue(self, current_module, **kwargs):
+        if 'nonext' in kwargs:
+            return
         if current_module in self.next_job.keys():
             for next_module in self.next_job[current_module]:
-                payload = {
-                    'module': next_module,
-                    'body_id': body_id
-                }
-                self.queue_network.put(payload)
+                kwargs['module'] = next_module
+                self.queue_network.put(kwargs)
 
     def load_config(self):
         self.config = get_config(os.getenv('APPLICATION_MODE', 'DEVELOPMENT'))()

@@ -11,10 +11,93 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 """
 
 import sys
+import argparse
 from oparlsync import OparlSync
 
-oparlsync = OparlSync()
+daemon_choices = ['start', 'start-foreground', 'stop', 'status']
+queue_choices = ['add', 'clear', 'list', 'stats']
+module_choices = ['download', 'backref', 'elastic', 'thumbnails', 'fulltext', 'georef', 'sitemap', 'misc', 'worker']
+worker_region_choices = ['region-download', 'region-elastic', 'sync-region', 'sync-regions']
+worker_body_choices = ['remove-body', 'sync-bodies', 'sync-body', 'remove-locations', 'reset-georef', 'reset-lastsync']
+worker_misc_choices = ['migrate-ids', 'fix-oparl-11', 'sitemap-master']
 
+
+
+args = sys.argv
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    'base',
+    help='Basis-Befehl',
+    choices=['daemon', 'queue', 'single']
+)
+if len(args) > 1:
+    if args[1] == 'daemon':
+        parser.add_argument(
+            'action',
+            choices=daemon_choices
+        )
+    elif args[1] == 'queue':
+        parser.add_argument(
+            'action',
+            choices=queue_choices
+        )
+        if len(args) > 2:
+            if args[2] == 'add':
+                parser.add_argument(
+                    'module',
+                    choices=module_choices
+                )
+                if len(args) > 3:
+                    if args[3] == 'street':
+                        parser.add_argument('region')
+                    else:
+                        parser.add_argument('body')
+                        parser.add_argument(
+                            '-s',
+                            '--since',
+                            metavar='1970-01-01'
+                        )
+                    parser.add_argument('--nonext')
+            elif args[2] == 'clear':
+                parser.add_argument(
+                    '-f',
+                    '--force',
+                    action='store_true'
+                )
+    elif args[1] == 'single':
+        parser.add_argument(
+            'module',
+            choices=module_choices
+        )
+        if len(args) > 2:
+            if args[2] == 'worker':
+                parser.add_argument(
+                    'job',
+                    choices=worker_region_choices + worker_body_choices + worker_misc_choices
+                )
+                if len(args) > 3:
+                    if args[3] in worker_region_choices:
+                        parser.add_argument(
+                            'region'
+                        )
+                    elif args[3] in worker_body_choices:
+                        parser.add_argument(
+                            'body'
+                        )
+            elif args[2] == 'street':
+                parser.add_argument('region')
+            else:
+                parser.add_argument('body')
+                parser.add_argument(
+                    '-s',
+                    '--since',
+                    metavar='1970-01-01'
+                )
+
+kwargs = vars(parser.parse_args())
+oparlsync = OparlSync(**kwargs)
+
+"""
 args = sys.argv
 
 global_action = ['daemon', 'single', 'queue']
@@ -76,3 +159,4 @@ if args[1] == 'single':
         sys.exit('usage: python manage.py single $module $body $mongoid|$oparlid(optional)')
 
     oparlsync.single(args[2], args[3], *args[4:])
+"""

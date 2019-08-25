@@ -20,12 +20,8 @@ class GenerateBackrefs(BaseTask):
         'mongodb'
     ]
 
-    def __init__(self, body_id):
-        self.body_id = body_id
-        super().__init__()
-
-    def run(self, body_id, *args):
-        self.body = Body.objects(uid=body_id).no_cache().first()
+    def __init__(self, **kwargs):
+        self.body = Body.objects(uid=kwargs.get('body')).no_cache().first()
         if not self.body:
             return
         self.backrefs_created = 0

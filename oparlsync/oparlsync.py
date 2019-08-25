@@ -45,15 +45,15 @@ from oparlsync.misc import Misc
 
 class OparlSync():
     modules = {
-        'oparl_download': OparlDownload,
-        'generate_thumbnails': GenerateThumbnails,
-        'generate_fulltext': GenerateFulltext,
-        'maintenance': Maintenance,
-        'street_import': StreetImport,
-        'generate_georeferences': GenerateGeoreferences,
-        'generate_backrefs': GenerateBackrefs,
-        'elasticsearch_import': ElasticsearchImport,
-        'generate_sitemap': GenerateSitemap,
+        'download': OparlDownload,
+        'thumbnails': GenerateThumbnails,
+        'fulltext': GenerateFulltext,
+        'worker': Maintenance,
+        'streets': StreetImport,
+        'georefs': GenerateGeoreferences,
+        'backrefs': GenerateBackrefs,
+        'elastic': ElasticsearchImport,
+        'sitemap': GenerateSitemap,
         'misc': Misc
     }
 
@@ -65,30 +65,34 @@ class OparlSync():
         "name": None
     }
 
-    def __init__(self):
+    def __init__(self, **params):
         self.load_config()
         self.init_statuslog()
+        if params.get('base') in ['queue', 'daemon']:
+            getattr(self, '%s_%s' % (params.get('base'), params.get('action')))(**params)
+        else:
+            self.single(**params)
 
-    def single(self, module, body_id, *args):
-        if module not in self.modules:
+
+    def single(self, **kwargs):
+        if kwargs.get('module') not in self.modules:
             sys.exit('fatal: module does not exist.')
-        current_module = self.modules[module](body_id)
-        current_module.run(body_id, *args)
+        current_module = self.modules[kwargs.get('module')](**kwargs)
 
-    def queue_add(self, module, body_id, *args):
+    def queue_add(self, **kwargs):
         self.init_queue()
-        if module not in self.modules:
+        if kwargs.get('module') not in self.modules:
             sys.exit('fatal: module should be one of %s' % '|'.join(self.modules.keys()))
-        if body_id == 'all':
+        if kwargs.get('body') == 'all':
             bodies = os.listdir(self.config.BODY_DIR)
             for body in bodies:
                 if body[-4:] != '.yml':
                     continue
-                self.queue_add_single(module, body)
+                self.queue_add_single(kwargs.get('module'), body, **kwargs)
         else:
-            self.queue_add_single(module, self.get_body_config_file(body_id))
+            self.queue_add_single(kwargs.get('module'), kwargs.get('body'), **kwargs)
 
-    def queue_add_single(self, module, body_file):
+    def queue_add_single(self, module, body_file, **kwargs):
         body_config = self.get_body_config(filename=body_file)
         if not body_config:
             sys.exit('body does not exist')
@@ -97,7 +101,6 @@ class OparlSync():
                 'module': module,
                 'body_id': body_config['id']
             }
-            kwargs = {}
             if module == 'oparl_download':
                 url = urlparse(body_config['url'])
                 ip = socket.gethostbyname(url.netloc)
@@ -105,11 +108,14 @@ class OparlSync():
                     kwargs['external'] = ip
             self.queue_network.put(payload, **kwargs)
 
-    def queue_clear(self):
+    def queue_clear(self, **kwargs):
         self.init_queue()
-        self.queue_network.clear_safe()
+        if kwargs.get('force'):
+            self.queue_network.clear()
+        else:
+            self.queue_network.clear_safe()
 
-    def queue_details(self):
+    def queue_list(self, **kwargs):
         self.init_queue()
         jobs = self.queue_network.details()
         print('| Body ID        | Job                    | Status    |')
@@ -117,7 +123,7 @@ class OparlSync():
         for job in jobs:
             print('| %s | %s | %s |' % (job['body_id'], job['module'].ljust(22), job['status'].ljust(9)))
 
-    def queue_stats(self):
+    def queue_stats(self, **kwargs):
         self.init_queue()
         stats = self.queue_network.stats()
         print('available: %s' % (int(stats['available'])))
@@ -125,7 +131,7 @@ class OparlSync():
         print('total    : %s' % (int(stats['total'])))
         print('errors   : %s' % (int(stats['errors'])))
 
-    def get_daemon_status(self):
+    def daemon_status(self):
         if not os.path.isfile(os.path.join(self.config.TMP_DIR, 'app.pid')):
             return False
         pidfile = open(os.path.join(self.config.TMP_DIR, 'app.pid'), 'r')
@@ -252,7 +258,7 @@ class OparlSync():
         try:
             with open('%s/%s' % (self.config.BODY_DIR, filename)) as body_config_file:
                 if not body_config_file:
-                    return False
+                    return
                 try:
                     body_config = deepcopy(self.default_config)
                     body_config.update(yaml.load(body_config_file, Loader=yaml.SafeLoader))
@@ -266,11 +272,6 @@ class OparlSync():
                             return None
                     return body_config
                 except ValueError:
-                    return None
+                    return
         except FileNotFoundError:
-            return None
-
-    def get_body_config_file(self, body_id):
-        for filename in os.listdir(self.config.BODY_DIR):
-            if filename.startswith('DE-%s' % body_id):
-                return filename
+            return

@@ -26,12 +26,10 @@ class StreetImport(BaseTask):
         'mongodb'
     ]
 
-    def __init__(self, body_id):
-        self.body_id = body_id
-        super().__init__()
+    def __init__(self, region, **kwargs):
 
-    def run(self, region_id):
-        self.save_streets(region_id)
+        super().__init__()
+        self.save_streets(region)
 
     def save_streets(self, region_id):
         if not self.config.ENABLE_PROCESSING:

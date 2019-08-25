@@ -41,9 +41,11 @@ class OparlDownload(BaseTask):
         's3'
     ]
     oparl_version = '1.1'
+    modified_since = None
+    body_id = None
 
-    def __init__(self, body_id):
-        self.body_id = body_id
+    def __init__(self, **kwargs):
+        self.body_id = kwargs.get('body')
         super().__init__()
 
         self.start_time = datetime.datetime.utcnow()
@@ -84,14 +86,13 @@ class OparlDownload(BaseTask):
         self.meeting_list_url = False
         self.paper_list_url = False
 
-    def reset_cache(self):
-        self.cache = {}
-        for obj in self.valid_objects:
-            self.cache[obj.__name__] = {}
-
-    def run(self, body_id, *args):
         self.reset_cache()
         self.modified_since = None
+        if kwargs.get('since'):
+            self.modified_since = datetime.datetime.strptime(kwargs['since'], '%Y-%m-%d').strftime('%Y-%m-%dT%H:%M:%SZ')
+        self.body_id = kwargs.get('body')
+        self.run_full()
+        """
         for arg in args:
             if arg.startswith('since='):
                 self.modified_since = dateutil_parse(arg.split('=')[1])
@@ -106,15 +107,17 @@ class OparlDownload(BaseTask):
                 self.run_full(body_id, True)
             else:
                 self.run_single(body_id, *args)
-
         else:
             self.run_full(body_id)
+        """
 
-    def run_full(self, body_id, all=False):
-        self.body_config = self.get_body_config(body_id)
-        self.datalog.info('Body %s sync launched.' % body_id)
+
+
+    def run_full(self):
+        self.body_config = self.get_body_config(self.body_id)
+        self.datalog.info('Body %s sync launched.' % self.body_id)
         if not self.body_config:
-            self.datalog.error('body id %s configuration not found' % body_id)
+            self.datalog.error('body id %s configuration not found' % self.body_id)
             return
         if 'url' not in self.body_config:
             return
@@ -131,7 +134,7 @@ class OparlDownload(BaseTask):
         body.lastSync = self.start_time.isoformat()
         body.save()
 
-        self.datalog.info('Body %s sync done. Results:' % body_id)
+        self.datalog.info('Body %s sync done. Results:' % self.body_id)
         self.datalog.info('mongodb requests:     %s' % self.mongodb_request_count)
         self.datalog.info('cached requests:      %s' % self.mongodb_request_cached)
         self.datalog.info('http requests:        %s' % self.http_request_count)
@@ -173,6 +176,11 @@ class OparlDownload(BaseTask):
         for oparl_object in self.valid_objects:
             if data['type'] == oparl_object.type:
                 self.save_object(oparl_object, data)
+
+    def reset_cache(self):
+        self.cache = {}
+        for obj in self.valid_objects:
+            self.cache[obj.__name__] = {}
 
     def get_body(self, set_last_sync=True):
         self.body_uid = None

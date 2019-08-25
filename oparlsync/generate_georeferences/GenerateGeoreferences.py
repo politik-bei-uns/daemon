@@ -23,20 +23,15 @@ class GenerateGeoreferences(BaseTask):
         'mongodb'
     ]
 
-    def __init__(self, body_id):
-        self.body_id = body_id
+    def __init__(self, **kwargs):
         super().__init__()
 
-    def __del__(self):
-        pass
-
-    def run(self, body_id, *args):
         if not self.config.ENABLE_PROCESSING:
             return
-        self.body_config = self.get_body_config(body_id)
+        self.body_config = self.get_body_config(kwargs.get('body'))
         if not self.body_config:
             return
-        self.body = Body.objects(uid=body_id).no_cache().first()
+        self.body = Body.objects(uid=kwargs.get('body')).no_cache().first()
         if not self.body:
             return
         if not self.body.region:
